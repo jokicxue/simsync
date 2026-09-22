@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  simsync:
+    build: .
+    image: simsync:latest
+    container_name: simsync
+    restart: unless-stopped
+    network_mode: host
+    # 与host网络模式冲突，暂时注释掉端口映射
+    #ports:
+    #  - "8088:8088"
+    volumes:
+      # 持久化存储目录：存放 sqlite 数据库和 config.yaml
+      - ./data:/app/data
+      # 挂载代码目录：修改任何 Python 代码或 HTML 页面后，只需 restart，1 秒生效，彻底告别 rebuild 和重复下载！
+      - ./simsync:/app/simsync
+      # 挂载宿主机全部设备节点，支持 Air780E 热插拔及串口自动探测
+      - /dev:/dev
+    # 开启特权模式，解决 Docker 容器下串口设备读写权限问题
+    privileged: true
+    environment:
+      - TZ=Asia/Shanghai
+      - PYTHONUNBUFFERED=1

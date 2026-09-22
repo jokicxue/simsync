@@ -1,0 +1,150 @@
+# SimSync 配置文件示例
+# 适用于蜂窝模组（合宙 Air780E/Air724、移远 EC20/EC25/EC200 等）+ 各类 SIM 卡（国内卡/海外漫游卡）
+
+server:
+  host: "0.0.0.0"
+  port: 8088
+  username: "admin"                    # 管理员账号（初次访问时可在 Web 界面注册）
+  # Web 界面外网访问密码（填入明文后系统启动时会自动计算 SHA-256 并回写为 password_hash，也可直接在 Web 注册）
+  password: ""
+  password_hash: ""
+  # 2FA 双因子认证 (RFC 6238 TOTP，可在 Web 控制台一键扫码开启)
+  totp_enabled: false
+  totp_secret: ""
+  api_key: ""
+  # Session 密钥 (留空自动生成)
+  secret_key: "simsync-secret-key-change-it"
+  # 是否开启本地敏感数据加密存储 (若设为 true，Webhook、Token、密码等将以 AES 加密密文 enc:... 存储)
+  encrypt_sensitive_data: false
+
+modem:
+  # 串口设备路径："auto"（推荐，自动扫描 /dev/ttyACM*、/dev/ttyUSB* 与 COM* 并探测 AT 响应）
+  # 也可手动固定：例如 CDC-ACM 为 /dev/ttyACM0，或 /dev/ttyUSB1、COM3
+  port: "auto"
+  baudrate: 115200
+  timeout: 5
+  
+  # 0 流量与网络保护：
+  # 来电处理策略：
+  # true: 检测到来电振铃 (RING) 立即发送 ATH 挂断，避免接听产生昂贵的国际漫游接听费，并立即触发推送
+  # false: 不主动挂断
+  auto_hangup_calls: true
+  # 本机手机号码（若 SIM 卡出厂未写入 EF_MSISDN 或需手动指定，可在 Web 界面直接点击修改）
+  phone_number: ""
+
+# 智能飞行模式策略 (彻底消除漫游射频连接与意外扣费)
+auto_flight:
+  enabled: false                      # 是否开启自动飞行策略
+  auto_flight_on_received: true       # 收到短信后是否自动进入飞行模式 (AT+CFUN=4)
+  delay_minutes_on_received: 5        # 收到短信后延迟 N 分钟休眠 (期间有新短信将重置计时)
+  auto_flight_on_sent: true           # 发送短信后是否自动进入飞行模式
+  delay_minutes_on_sent: 5            # 发送短信后延迟 N 分钟休眠
+  wake_before_send: true              # 发送短信或执行保号任务前自动唤醒射频 (AT+CFUN=1) 并等待搜网
+
+# 呼叫转移设置 (3GPP AT+CCFC 核心网控制)
+# 说明：呼叫转移是在运营商核心网执行，而非模块本地转接。
+# 平时保持停用状态，来电本地 0.5s 极速挂断；需要时在 Web 控制台一键启用。
+call_forwarding:
+  target_number: "+61400000000"       # 目标转移号码（需带国际区号，如 +61）
+  # 转移条件: 0=无条件(Unconditional), 1=遇忙(Busy), 2=无应答(No Reply), 3=不可及(Not Reachable)
+  reason: 0
+
+# 多渠道推送通知设置（短信与来电独立配置，支持在 Web 端一键测试）
+notifications:
+  # 1. 飞书 (Feishu / Lark)
+  feishu:
+    enabled: false
+    # 方式 A：自定义群机器人 Webhook
+    webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    # 来电提醒独立配置
+    call_enabled: true                # 是否推送来电提醒
+    call_use_custom: false            # 是否使用独立来电 Webhook (false 表示与短信相同)
+    call_webhook_url: ""              # 独立来电 Webhook URL
+    
+    # 方式 B：飞书多维表格 (Bitable) 云端持久化备份
+    bitable:
+      enabled: false
+      app_id: "cli_xxxxxxxxxxxx"        # 飞书自建应用 App ID
+      app_secret: "xxxxxxxxxxxxxxxx"     # 飞书自建应用 App Secret
+      app_token: "ZS10wNkVZiyDz7kEkW9cg0m5nif"  # 支持 wiki_token 或 base app_token
+      table_id: "tblQoNEQJSEaihmw"      # 短信数据表 ID
+      # 来电多维表格归档
+      call_enabled: false              # 是否同步将通话记录归档到多维表格
+      call_mode: "same_base"           # "same_base" (同文档不同工作表), "same_table" (同工作表), "custom" (完全独立文档)
+      call_app_token: ""               # 独立文档 app_token (call_mode 为 custom 时使用)
+      call_table_id: ""                # 来电工作表 table_id
+
+  # 2. 微信推送
+  wechat:
+    enabled: false
+    # 模式: "wecom_bot" (企业微信群机器人) 或 "wxpusher" (个人微信关注公众号直接收)
+    mode: "wecom_bot"
+    
+    # 企业微信群机器人配置
+    wecom_bot:
+      webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    
+    # WxPusher 配置 (https://wxpusher.zjiecode.com/)
+    wxpusher:
+      app_token: "AT_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      uids:
+        - "UID_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    
+    # 来电提醒独立配置
+    call_enabled: true
+    call_use_custom: false
+    call_wecom_webhook_url: ""
+    call_wxpusher_uids: []
+
+  # 3. 邮件推送 (SMTP)
+  email:
+    enabled: false
+    smtp_host: "smtp-mail.outlook.com"
+    smtp_port: 587
+    use_ssl: false                      # 465 端口填 true，587 端口填 false (STARTTLS)
+    username: "your_email@outlook.com"
+    password: "your_app_password"       # 邮箱授权码 / 应用密码
+    from_addr: "your_email@outlook.com"
+    to_addrs:
+      - "your_email@outlook.com"
+    # 来电提醒独立配置
+    call_enabled: true
+    call_use_custom: false
+    call_to_addrs: []
+
+  # 4. 钉钉 (DingTalk)
+  dingtalk:
+    enabled: false
+    webhook_url: "https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxx"
+    secret: "SECxxxxxxxx"               # 加签密钥 (留空则不加签)
+    # 来电提醒独立配置
+    call_enabled: true
+    call_use_custom: false
+    call_webhook_url: ""
+    call_secret: ""
+
+  # 5. Telegram
+  telegram:
+    enabled: false
+    bot_token: "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
+    chat_id: "123456789"
+    proxy: ""                           # 如需走代理可填: "http://127.0.0.1:7890"
+    # 来电提醒独立配置
+    call_enabled: true
+    call_use_custom: false
+    call_chat_id: ""
+
+  # 6. 自定义 Webhook
+  webhook:
+    enabled: false
+    url: "https://your-domain.com/api/sms/callback"
+    method: "POST"
+    # 来电提醒独立配置
+    call_enabled: true
+    call_use_custom: false
+    call_url: ""
+    call_method: "POST"
+
+storage:
+  # 本地 SQLite 数据库存储路径（所有短信正文与号码均经过 AES-256 静态加密）
+  db_path: "data/simsync.db"

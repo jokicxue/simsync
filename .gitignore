@@ -1,0 +1,65 @@
+# ==================== 运行数据与敏感配置 (绝不可提交) ====================
+data/*
+!data/.gitkeep
+config.yaml
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ==================== Python 编译与运行时缓存 ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ==================== 测试与覆盖率 ====================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# ==================== IDE / 编辑器配置 ====================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==================== 临时文件与备份导出 ====================
+*.log
+*.zip
+*.tar.gz
+sms_backup*.xml
+calls_backup*.xml
+scratch/

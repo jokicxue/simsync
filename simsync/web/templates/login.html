@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimSync - {% if not initialized %}首次部署初始化{% else %}身份安全验证{% endif %}</title>
+    <script>
+        (function() {
+            try {
+                const mode = localStorage.getItem('simsync_theme_mode') || 'auto';
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const effective = mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode;
+                document.documentElement.setAttribute('data-theme', effective);
+            } catch (e) {}
+        })();
+    </script>
+    <style>
+        :root, :root[data-theme="light"] {
+            --bg: #f8fafc;
+            --bg-gradient: 
+                radial-gradient(at 10% 12%, rgba(56, 189, 248, 0.12) 0px, transparent 40%),
+                radial-gradient(at 88% 18%, rgba(99, 102, 241, 0.10) 0px, transparent 40%),
+                radial-gradient(at 45% 75%, rgba(236, 72, 153, 0.06) 0px, transparent 45%),
+                radial-gradient(at 92% 88%, rgba(37, 99, 235, 0.08) 0px, transparent 40%);
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --card-border: rgba(226, 232, 240, 0.9);
+            --card-shadow: 0 20px 35px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+            --text-main: #0f172a;
+            --text-title: #0f172a;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --input-bg: #ffffff;
+            --input-border: #cbd5e1;
+            --input-text: #0f172a;
+            --totp-bg: #f8fafc;
+            --totp-border: #cbd5e1;
+            color-scheme: light;
+            --btn-outline-bg: #ffffff;
+            --btn-outline-border: #cbd5e1;
+            --btn-outline-hover: #f8fafc;
+        }
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0b0f19;
+            --bg-gradient: 
+                radial-gradient(at 10% 12%, rgba(56, 189, 248, 0.12) 0px, transparent 45%),
+                radial-gradient(at 88% 18%, rgba(99, 102, 241, 0.13) 0px, transparent 45%),
+                radial-gradient(at 45% 75%, rgba(236, 72, 153, 0.08) 0px, transparent 45%),
+                radial-gradient(at 92% 88%, rgba(37, 99, 235, 0.12) 0px, transparent 45%);
+            --card-bg: rgba(17, 24, 39, 0.85);
+            --card-border: rgba(255, 255, 255, 0.12);
+            --card-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.35);
+            --text-main: #f8fafc;
+            --text-title: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: rgba(51, 65, 85, 0.8);
+            --input-bg: rgba(15, 23, 42, 0.75);
+            --input-border: rgba(51, 65, 85, 0.85);
+            --input-text: #f8fafc;
+            --totp-bg: rgba(15, 23, 42, 0.65);
+            --totp-border: rgba(51, 65, 85, 0.8);
+            --btn-outline-bg: rgba(30, 41, 59, 0.6);
+            --btn-outline-border: rgba(255, 255, 255, 0.12);
+            --btn-outline-hover: rgba(51, 65, 85, 0.7);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+        body {
+            background-color: var(--bg);
+            background-image: var(--bg-gradient);
+            background-attachment: fixed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 16px;
+            color: var(--text-main);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            width: 100%;
+            max-width: 420px;
+            padding: 32px 28px;
+            text-align: left;
+            position: relative;
+        }
+        .header { text-align: center; margin-bottom: 24px; }
+        .logo { width: 50px; height: 50px; background: #2563eb; color: white; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 12px; }
+        h1 { font-size: 1.35rem; color: var(--text-title); font-weight: 700; margin-bottom: 6px; }
+        p { font-size: 0.85rem; color: var(--text-muted); }
+        .field { margin-bottom: 16px; }
+        .label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+        .input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--input-border);
+            background: var(--input-bg);
+            color: var(--input-text);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        .input::placeholder { color: var(--text-muted); opacity: 0.75; }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
+            -webkit-text-fill-color: var(--input-text) !important;
+            caret-color: var(--input-text);
+            transition: background-color 5000s ease-in-out 0s;
+        }
+        .btn { width: 100%; padding: 11px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; margin-top: 6px; display: inline-flex; justify-content: center; align-items: center; gap: 6px; }
+        .btn:hover { background: #1d4ed8; }
+        .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn-outline { background: var(--btn-outline-bg); border: 1px solid var(--btn-outline-border); color: var(--text-main); }
+        .btn-outline:hover { background: var(--btn-outline-hover); }
+        .btn-sm { padding: 6px 12px; font-size: 0.82rem; margin-top: 0; width: auto; }
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 0.82rem; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; display: none; line-height: 1.4; }
+        .success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-size: 0.82rem; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; display: none; line-height: 1.4; }
+        :root[data-theme="dark"] .error { background: rgba(159, 18, 57, 0.22); border-color: rgba(239, 68, 68, 0.4); color: #fda4af; }
+        :root[data-theme="dark"] .success { background: rgba(22, 101, 52, 0.22); border-color: rgba(34, 197, 94, 0.4); color: #86efac; }
+        .totp-box { background: var(--totp-bg); border: 1px dashed var(--totp-border); border-radius: 8px; padding: 12px; margin-bottom: 16px; display: none; }
+        .totp-badge { display: inline-block; background: #e0f2fe; color: #0369a1; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-bottom: 6px; }
+        :root[data-theme="dark"] .totp-badge { background: rgba(3, 105, 161, 0.3); color: #7dd3fc; }
+        .links-row { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 0.82rem; }
+        .link-btn { color: #2563eb; text-decoration: none; cursor: pointer; background: none; border: none; font-size: 0.82rem; }
+        .link-btn:hover { text-decoration: underline; color: #1d4ed8; }
+        .footer-note { text-align: center; margin-top: 22px; font-size: 0.75rem; color: var(--text-muted); }
+
+        /* 模态弹窗 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.75); z-index: 999; justify-content: center; align-items: center; padding: 16px; backdrop-filter: blur(2px); }
+        .modal-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; width: 100%; max-width: 500px; padding: 26px 24px; box-shadow: var(--card-shadow); max-height: 90vh; overflow-y: auto; color: var(--text-main); }
+        .modal-title { font-size: 1.2rem; font-weight: 700; color: var(--text-title); margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+        .tab-bar { display: flex; border-bottom: 1.5px solid var(--border); margin: 16px 0; gap: 8px; }
+        .tab-btn { background: none; border: none; padding: 8px 12px; font-size: 0.86rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1.5px; }
+        .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+        .code-box { background: #0f172a; color: #38bdf8; font-family: "Cascadia Code", Consolas, Monaco, monospace; padding: 12px; border-radius: 8px; font-size: 0.82rem; line-height: 1.4; word-break: break-all; margin: 8px 0; position: relative; }
+        .code-copy-btn { position: absolute; top: 8px; right: 8px; background: #334155; color: #f8fafc; border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; }
+        .code-copy-btn:hover { background: #475569; }
+
+        .theme-toggle-btn {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: var(--btn-outline-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+        }
+        .theme-toggle-btn:hover {
+            border-color: #2563eb;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <button type="button" class="theme-toggle-btn" onclick="cycleTheme()" title="切换皮肤主题 (当前: 自动跟随系统)">
+        <span class="theme-icon">💻</span>
+    </button>
+    <div id="err-msg" class="error"></div>
+    <div id="succ-msg" class="success"></div>
+
+    {% if not initialized %}
+    <!-- ==================== 首次部署初始化注册 ==================== -->
+    <div id="view-init">
+        <div class="header">
+            <div class="logo">🛠️</div>
+            <h1>SimSync 首次部署向导</h1>
+            <p>检测到系统尚未设置管理员，请先设置管理账号与密码</p>
+        </div>
+
+        <form onsubmit="handleInit(event)">
+            <div class="field">
+                <label class="label" for="init-username">管理员账号</label>
+                <input type="text" id="init-username" class="input" placeholder="例如: admin" value="admin" autocomplete="username" required>
+            </div>
+
+            <div class="field">
+                <label class="label" for="init-port">Web 服务端口 (默认 8088)</label>
+                <input type="number" id="init-port" class="input" value="{{ port or 8088 }}" min="1" max="65535" placeholder="8088" required>
+            </div>
+
+            <div class="field">
+                <label class="label" for="init-pwd">设置访问密码 (至少 6 位)</label>
+                <input type="password" id="init-pwd" class="input" placeholder="请输入强密码" autocomplete="new-password" minlength="6" autofocus required>
+            </div>
+
+            <div class="field">
+                <label class="label" for="init-confirm-pwd">确认密码</label>
+                <input type="password" id="init-confirm-pwd" class="input" placeholder="请再次输入密码" autocomplete="new-password" minlength="6" required>
+            </div>
+
+            <button type="submit" id="init-btn" class="btn">🚀 完成初始化并进入控制台</button>
+        </form>
+    </div>
+
+    {% else %}
+    <!-- ==================== 常规安全登录 ==================== -->
+    <div id="view-login">
+        <div class="header">
+            <div class="logo">🔒</div>
+            <h1>SimSync 安全控制台</h1>
+            <p>公网安全保护已启用，请验证管理员身份</p>
+        </div>
+
+        <form onsubmit="handleLogin(event)">
+            <div class="field">
+                <label class="label" for="login-username">管理员账号</label>
+                <input type="text" id="login-username" class="input" placeholder="请输入用户名 (默认: admin)" value="{{ username or 'admin' }}" autocomplete="username" required>
+            </div>
+
+            <div class="field">
+                <label class="label" for="login-pwd">访问密码</label>
+                <input type="password" id="login-pwd" class="input" placeholder="请输入密码 (默认: admin)" autocomplete="current-password" autofocus required>
+            </div>
+
+            <div id="totp-container" class="totp-box" {% if totp_enabled %}style="display: block;"{% endif %}>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span class="totp-badge" id="totp-badge-title">2FA 双因子认证</span>
+                    <button type="button" class="link-btn" id="btn-toggle-2fa-mode" onclick="toggle2FAMode()" style="font-size: 0.74rem;">
+                        📱 手机丢失？使用应急安全码
+                    </button>
+                </div>
+                <div id="totp-input-mode">
+                    <label class="label" for="totp" style="margin-top:2px;">Google Authenticator 动态口令</label>
+                    <input type="text" id="totp" class="input" placeholder="请输入 6 位数字验证码" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" style="letter-spacing: 3px; font-size: 1.1rem; text-align: center;">
+                </div>
+                <div id="recovery-input-mode" style="display: none;">
+                    <label class="label" for="recovery-code" style="margin-top:2px; color: #b45309;">一次性应急安全码 (Recovery Code)</label>
+                    <input type="text" id="recovery-code" class="input" placeholder="例如: A8F2-9K3L" maxlength="12" style="letter-spacing: 2px; font-size: 1rem; text-align: center; font-family: monospace;">
+                    <p style="font-size: 0.74rem; color: #64748b; margin-top: 4px;">输入开启 2FA 时保存的任意一组未使用的安全码，验证后该码即刻核销作废。</p>
+                </div>
+            </div>
+
+            <button type="submit" id="login-btn" class="btn">登录控制台</button>
+        </form>
+
+        <div class="links-row">
+            <button type="button" class="link-btn" onclick="openForgotModal()">🔑 忘记密码？</button>
+            <span style="color: #cbd5e1;">|</span>
+            <button type="button" class="link-btn" onclick="openTerminalHelp()">🖥️ Docker 宿主机终端重置</button>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="footer-note">
+        Sim﻿​‌​‌​​‌‌​‌‌​‌​​‌​‌‌​‌‌​‌​‌​‌​​‌‌​‌‌‌‌​​‌​‌‌​‌‌‌​​‌‌​​​‌‌​​‌​‌‌​‌​‌​​‌‌‌‌​‌‌‌​​‌​​‌‌​‌​​‌​‌‌​​‌‌‌​‌‌​‌​​‌​‌‌​‌‌‌​​‌‌​​​​‌​‌‌​‌‌​​​​‌​‌‌​‌​‌​​​​​‌​‌‌‌​‌​‌​‌‌‌​‌​​​‌‌​‌​​​​‌‌​‌‌‌‌​‌‌‌​​‌​​​‌‌‌​‌​​‌‌​‌​‌​​‌‌​‌‌‌‌​‌‌​‌​‌‌​‌‌​‌​​‌​‌‌​​​‌‌﻿Sync Cat.1 蜂窝模组网关 &bull; 0 流量漫游防护
+    </div>
+</div>
+
+<!-- ==================== 忘记密码模态弹窗 ==================== -->
+<div class="modal-overlay" id="modal-forgot-pwd" onclick="if(event.target===this) closeForgotModal()">
+    <div class="modal-card">
+        <div class="modal-title">
+            <span>🔑 重置管理员密码</span>
+            <button type="button" onclick="closeForgotModal()" style="border: none; background: none; font-size: 1.2rem; cursor: pointer; color: #94a3b8;">&times;</button>
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b;">支持通过通知邮箱在线接收验证码重置，或直接在 Docker 宿主机终端执行重置命令。</p>
+
+        <div class="tab-bar">
+            <button type="button" class="tab-btn active" id="tab-btn-email" onclick="switchForgotTab('email')">📧 邮箱验证码重置</button>
+            <button type="button" class="tab-btn" id="tab-btn-terminal" onclick="switchForgotTab('terminal')">🖥️ Docker 宿主机终端重置</button>
+        </div>
+
+        <div id="forgot-err" class="error"></div>
+        <div id="forgot-succ" class="success"></div>
+
+        <!-- 方式 1: 邮箱验证码 -->
+        <div id="forgot-sec-email">
+            <p style="font-size: 0.82rem; color: #475569; margin-bottom: 12px;">
+                点击下方按钮，系统将向您在通知配置中绑定的管理员邮箱发送 6 位验证码（10 分钟有效）：
+            </p>
+            <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                <button type="button" id="btn-send-code" class="btn btn-outline btn-sm" onclick="sendForgotCode()">📨 获取 6 位邮箱验证码</button>
+            </div>
+
+            <form onsubmit="handleForgotReset(event)">
+                <div class="field">
+                    <label class="label" for="forgot-code">6 位邮箱验证码</label>
+                    <input type="text" id="forgot-code" class="input" placeholder="请输入收到的 6 位数字" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" required>
+                </div>
+                <div class="field">
+                    <label class="label" for="forgot-new-pwd">设置新密码 (至少 6 位)</label>
+                    <input type="password" id="forgot-new-pwd" class="input" placeholder="请输入新密码" minlength="6" required>
+                </div>
+                <div class="field">
+                    <label class="label" for="forgot-confirm-pwd">确认新密码</label>
+                    <input type="password" id="forgot-confirm-pwd" class="input" placeholder="请再次输入新密码" minlength="6" required>
+                </div>
+                <div class="field" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                    <input type="checkbox" id="forgot-disable-2fa" checked>
+                    <label for="forgot-disable-2fa" style="font-size: 0.82rem; color: #475569; cursor: pointer;">同时停用 2FA 双因子认证 (防止验证器丢失导致依然无法登录)</label>
+                </div>
+                <button type="submit" id="forgot-submit-btn" class="btn" style="margin-top: 10px;">确认重置密码并自动登录</button>
+            </form>
+        </div>
+
+        <!-- 方式 2: Docker 宿主机终端 -->
+        <div id="forgot-sec-terminal" style="display: none;">
+            <p style="font-size: 0.82rem; color: #475569; margin-bottom: 10px;">
+                若未配置 SMTP 邮件通知或无法收取邮件，请直接在 Docker 宿主机终端（通过 SSH 或终端控制台）中执行以下命令：
+            </p>
+
+            <div style="font-size: 0.82rem; font-weight: 600; color: #1e293b; margin-top: 8px;">方式 A：直接重置密码并关闭 2FA</div>
+            <div class="code-box">
+                <button class="code-copy-btn" onclick="copyText('sudo docker exec -it simsync python -m simsync.security.reset --password admin --disable-2fa')">复制</button>
+                sudo docker exec -it simsync python -m simsync.security.reset --password admin --disable-2fa
+            </div>
+            <div style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 12px;">* 执行后管理员密码将重置为 <code>admin</code>，并自动停用 2FA。</div>
+
+            <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-title); margin-top: 8px;">方式 B：恢复默认凭据 (admin / admin)</div>
+            <div class="code-box">
+                <button class="code-copy-btn" onclick="copyText('sudo docker exec -it simsync python -m simsync.security.reset --clear')">复制</button>
+                sudo docker exec -it simsync python -m simsync.security.reset --clear
+            </div>
+            <div style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 12px;">* 执行后恢复默认管理员账号 <code>admin</code> 与密码 <code>admin</code>。</div>
+
+            <div style="background: var(--totp-bg); border: 1px solid var(--totp-border); border-radius: 8px; padding: 10px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">
+                💡 <b>容器终端执行说明：</b><br>
+                若宿主机未配置 <code>sudo</code> 或直接在容器管理面板（如 Portainer / Docker 仪表盘 / 容器 Web 终端）内操作，可进入 <code>simsync</code> 容器终端直接执行：<br>
+                <code>python -m simsync.security.reset --password admin --disable-2fa</code>
+            </div>
+        </div>
+
+        <div style="text-align: right; margin-top: 16px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="closeForgotModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== 首次部署初始化 ====================
+async function handleInit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('init-btn');
+    const err = document.getElementById('err-msg');
+    const succ = document.getElementById('succ-msg');
+    const username = document.getElementById('init-username').value.trim();
+    const port = parseInt(document.getElementById('init-port').value, 10) || 8088;
+    const pwd = document.getElementById('init-pwd').value;
+    const confirmPwd = document.getElementById('init-confirm-pwd').value;
+
+    err.style.display = 'none';
+    succ.style.display = 'none';
+
+    if (isNaN(port) || port < 1 || port > 65535) {
+        err.style.display = 'block';
+        err.textContent = 'Web 服务端口必须在 1 ~ 65535 之间';
+        return;
+    }
+    if (pwd !== confirmPwd) {
+        err.style.display = 'block';
+        err.textContent = '两次输入的密码不一致，请重新核对';
+        return;
+    }
+    if (pwd.length < 6) {
+        err.style.display = 'block';
+        err.textContent = '密码长度不能少于 6 位';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '正在初始化...';
+
+    try {
+        const resp = await fetch('/api/auth/init', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                username: username || 'admin',
+                password: pwd,
+                port: port
+            })
+        });
+        const res = await resp.json();
+        if (res.success) {
+            succ.style.display = 'block';
+            succ.textContent = '🎉 管理员账号初始化成功，正在进入控制台...';
+            setTimeout(() => { window.location.href = '/'; }, 1000);
+        } else {
+            err.style.display = 'block';
+            err.textContent = res.message || '初始化失败，请重试';
+            btn.disabled = false;
+            btn.textContent = '🚀 完成初始化并进入控制台';
+        }
+    } catch (e) {
+        err.style.display = 'block';
+        err.textContent = '网络请求失败，请检查服务状态';
+        btn.disabled = false;
+        btn.textContent = '🚀 完成初始化并进入控制台';
+    }
+}
+
+let isRecoveryMode = false;
+function toggle2FAMode() {
+    isRecoveryMode = !isRecoveryMode;
+    const totpInputMode = document.getElementById('totp-input-mode');
+    const recoveryInputMode = document.getElementById('recovery-input-mode');
+    const toggleBtn = document.getElementById('btn-toggle-2fa-mode');
+    const totpBadge = document.getElementById('totp-badge-title');
+    const totpInput = document.getElementById('totp');
+    const recoveryInput = document.getElementById('recovery-code');
+
+    if (isRecoveryMode) {
+        totpInputMode.style.display = 'none';
+        recoveryInputMode.style.display = 'block';
+        toggleBtn.textContent = '⏱️ 使用动态口令 (TOTP)';
+        totpBadge.textContent = '一次性应急安全码';
+        if (totpInput) totpInput.required = false;
+        if (recoveryInput) {
+            recoveryInput.required = true;
+            recoveryInput.focus();
+        }
+    } else {
+        totpInputMode.style.display = 'block';
+        recoveryInputMode.style.display = 'none';
+        toggleBtn.textContent = '📱 手机丢失？使用应急安全码';
+        totpBadge.textContent = '2FA 双因子认证';
+        if (recoveryInput) recoveryInput.required = false;
+        if (totpInput) {
+            totpInput.required = true;
+            totpInput.focus();
+        }
+    }
+}
+
+// ==================== 常规登录 ====================
+async function handleLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const err = document.getElementById('err-msg');
+    const succ = document.getElementById('succ-msg');
+    const username = document.getElementById('login-username').value.trim();
+    const pwd = document.getElementById('login-pwd').value;
+    const totpInput = document.getElementById('totp');
+    const totpCode = totpInput ? totpInput.value.trim() : '';
+    const recoveryInput = document.getElementById('recovery-code');
+    const recoveryCode = recoveryInput ? recoveryInput.value.trim() : '';
+    const totpBox = document.getElementById('totp-container');
+
+    err.style.display = 'none';
+    succ.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = '正在验证...';
+
+    try {
+        const resp = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                username: username,
+                password: pwd,
+                totp_code: isRecoveryMode ? '' : totpCode,
+                recovery_code: isRecoveryMode ? recoveryCode : ''
+            })
+        });
+        const res = await resp.json();
+
+        if (res.success) {
+            btn.textContent = '验证成功，正在跳转...';
+            window.location.href = '/';
+        } else if (res.requires_totp) {
+            totpBox.style.display = 'block';
+            if (isRecoveryMode) {
+                if (recoveryInput) {
+                    recoveryInput.required = true;
+                    recoveryInput.focus();
+                }
+            } else {
+                if (totpInput) {
+                    totpInput.required = true;
+                    totpInput.focus();
+                }
+            }
+            err.style.display = 'block';
+            err.textContent = res.message || '该账号已开启 2FA，请输入验证信息';
+            btn.disabled = false;
+            btn.textContent = '确认并登录';
+        } else if (res.requires_init) {
+            alert('系统尚未完成初始化注册，页面将刷新以进入向导');
+            window.location.reload();
+        } else {
+            err.style.display = 'block';
+            err.textContent = res.message || '用户名或密码错误';
+            btn.disabled = false;
+            btn.textContent = '登录控制台';
+        }
+    } catch (e) {
+        err.style.display = 'block';
+        err.textContent = '网络请求失败，请检查服务连接';
+        btn.disabled = false;
+        btn.textContent = '登录控制台';
+    }
+}
+
+// ==================== 忘记密码弹窗与逻辑 ====================
+function openForgotModal() {
+    document.getElementById('modal-forgot-pwd').style.display = 'flex';
+    document.getElementById('forgot-err').style.display = 'none';
+    document.getElementById('forgot-succ').style.display = 'none';
+    switchForgotTab('email');
+}
+
+function openTerminalHelp() {
+    document.getElementById('modal-forgot-pwd').style.display = 'flex';
+    document.getElementById('forgot-err').style.display = 'none';
+    document.getElementById('forgot-succ').style.display = 'none';
+    switchForgotTab('terminal');
+}
+
+function closeForgotModal() {
+    document.getElementById('modal-forgot-pwd').style.display = 'none';
+}
+
+function switchForgotTab(tab) {
+    const btnEmail = document.getElementById('tab-btn-email');
+    const btnTerm = document.getElementById('tab-btn-terminal');
+    const secEmail = document.getElementById('forgot-sec-email');
+    const secTerm = document.getElementById('forgot-sec-terminal');
+
+    if (tab === 'email') {
+        btnEmail.classList.add('active');
+        btnTerm.classList.remove('active');
+        secEmail.style.display = 'block';
+        secTerm.style.display = 'none';
+    } else {
+        btnTerm.classList.add('active');
+        btnEmail.classList.remove('active');
+        secTerm.style.display = 'block';
+        secEmail.style.display = 'none';
+    }
+}
+
+async function sendForgotCode() {
+    const btn = document.getElementById('btn-send-code');
+    const err = document.getElementById('forgot-err');
+    const succ = document.getElementById('forgot-succ');
+    err.style.display = 'none';
+    succ.style.display = 'none';
+
+    btn.disabled = true;
+    btn.textContent = '正在发送...';
+
+    try {
+        const resp = await fetch('/api/auth/forgot_password/send_code', {
+            method: 'POST'
+        });
+        const res = await resp.json();
+        if (res.success) {
+            succ.style.display = 'block';
+            succ.textContent = res.message || '验证码已发送至管理员邮箱，请查收';
+            startCodeCountdown(btn);
+        } else {
+            err.style.display = 'block';
+            err.textContent = res.message || '发送失败，请使用终端命令重置';
+            btn.disabled = false;
+            btn.textContent = '📨 获取 6 位邮箱验证码';
+        }
+    } catch (e) {
+        err.style.display = 'block';
+        err.textContent = '请求失败: ' + e;
+        btn.disabled = false;
+        btn.textContent = '📨 获取 6 位邮箱验证码';
+    }
+}
+
+function startCodeCountdown(btn) {
+    let count = 60;
+    btn.textContent = `重新获取 (${count}s)`;
+    const timer = setInterval(() => {
+        count--;
+        if (count <= 0) {
+            clearInterval(timer);
+            btn.disabled = false;
+            btn.textContent = '📨 获取 6 位邮箱验证码';
+        } else {
+            btn.textContent = `重新获取 (${count}s)`;
+        }
+    }, 1000);
+}
+
+async function handleForgotReset(e) {
+    e.preventDefault();
+    const btn = document.getElementById('forgot-submit-btn');
+    const err = document.getElementById('forgot-err');
+    const succ = document.getElementById('forgot-succ');
+    const code = document.getElementById('forgot-code').value.trim();
+    const newPwd = document.getElementById('forgot-new-pwd').value;
+    const confirmPwd = document.getElementById('forgot-confirm-pwd').value;
+    const disable2FA = document.getElementById('forgot-disable-2fa').checked;
+
+    err.style.display = 'none';
+    succ.style.display = 'none';
+
+    if (newPwd !== confirmPwd) {
+        err.style.display = 'block';
+        err.textContent = '两次输入的新密码不一致，请核对';
+        return;
+    }
+    if (newPwd.length < 6) {
+        err.style.display = 'block';
+        err.textContent = '新密码长度不能少于 6 位';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '正在重置密码...';
+
+    try {
+        const resp = await fetch('/api/auth/forgot_password/reset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                code: code,
+                new_password: newPwd,
+                disable_2fa: disable2FA
+            })
+        });
+        const res = await resp.json();
+        if (res.success) {
+            succ.style.display = 'block';
+            succ.textContent = '🎉 密码重置成功，正在自动登录进入控制台...';
+            setTimeout(() => { window.location.href = '/'; }, 1000);
+        } else {
+            err.style.display = 'block';
+            err.textContent = res.message || '重置失败，请检查验证码';
+            btn.disabled = false;
+            btn.textContent = '确认重置密码并自动登录';
+        }
+    } catch (e) {
+        err.style.display = 'block';
+        err.textContent = '网络请求失败，请检查服务连接';
+        btn.disabled = false;
+        btn.textContent = '确认重置密码并自动登录';
+    }
+}
+
+function copyText(txt) {
+    navigator.clipboard.writeText(txt).then(() => {
+        alert('命令已成功复制到剪贴板！');
+    }).catch(() => {
+        prompt('请手动复制以下命令：', txt);
+    });
+}
+
+// ==================== 白色/深色双皮肤与系统自适应切换 ====================
+function getSystemTheme() {
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+}
+
+function applyTheme(mode) {
+    if (!['auto', 'light', 'dark'].includes(mode)) {
+        mode = 'auto';
+    }
+    localStorage.setItem('simsync_theme_mode', mode);
+    const effectiveTheme = mode === 'auto' ? getSystemTheme() : mode;
+    document.documentElement.setAttribute('data-theme', effectiveTheme);
+
+    const icon = mode === 'auto' ? '💻' : (mode === 'light' ? '☀️' : '🌙');
+    const desc = mode === 'auto' ? `自动 (跟随系统: ${effectiveTheme === 'dark' ? '深色' : '浅色'})` : (mode === 'light' ? '浅色皮肤 (白色)' : '深色皮肤 (黑色)');
+
+    document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+        btn.setAttribute('title', `点击切换皮肤主题 (当前: ${desc})`);
+        const iconEl = btn.querySelector('.theme-icon');
+        if (iconEl) iconEl.textContent = icon;
+    });
+}
+
+function cycleTheme() {
+    const currentMode = localStorage.getItem('simsync_theme_mode') || 'auto';
+    const nextMode = currentMode === 'auto' ? 'light' : (currentMode === 'light' ? 'dark' : 'auto');
+    applyTheme(nextMode);
+}
+
+if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        const mode = localStorage.getItem('simsync_theme_mode') || 'auto';
+        if (mode === 'auto') {
+            applyTheme('auto');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    applyTheme(localStorage.getItem('simsync_theme_mode') || 'auto');
+});
+</script>
+
+</body>
+</html>
