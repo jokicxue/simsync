@@ -15,7 +15,7 @@ services:
       - ./data:/app/data
       # 挂载代码目录：修改任何 Python 代码或 HTML 页面后，只需 restart，1 秒生效，彻底告别 rebuild 和重复下载！
       - ./simsync:/app/simsync
-      # 挂载宿主机全部设备节点，支持 Air780E 热插拔及串口自动探测
+      # 挂载宿主机全部设备节点，支持模组热插拔及串口自动探测
       - /dev:/dev
     # 开启特权模式，解决 Docker 容器下串口设备读写权限问题
     privileged: true
