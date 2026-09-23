@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
+from simsync import __version__
 from simsync.storage.database import Database
 from simsync.storage.xml_exporter import generate_sms_backup_xml, generate_call_logs_backup_xml
 from simsync.modem.at_client import ModemClient, scan_available_ports
@@ -951,7 +952,7 @@ def create_app(
                 # 3. 写入说明元数据
                 meta = {
                     "app": "SimSync",
-                    "version": "1.0.0",
+                    "version": __version__,
                     "exported_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "encrypted_sensitive_data": config.server.encrypt_sensitive_data,
                     "includes_db": has_db,
