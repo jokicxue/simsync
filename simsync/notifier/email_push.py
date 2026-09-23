@@ -189,6 +189,17 @@ class EmailNotifier:
         if not recipients:
             raise ValueError("未配置有效的邮件收件人邮箱 (to_addrs 为空)")
 
+        # 微软个人版邮箱限制拦截 (2024.09.16 起全面封杀 SMTP 基础认证与应用密码)
+        user_lower = (self.username or "").lower()
+        if any(user_lower.endswith(dom) for dom in ("@outlook.com", "@hotmail.com", "@live.com", "@msn.com")):
+            err_msg = (
+                "微软个人版 Outlook/Hotmail 邮箱不可用作 SMTP 发信端。\n"
+                "【原因】：微软官方已于 2024 年 9 月 16 日彻底废止个人版账户的基本认证 (Basic Auth) 与应用密码 (App Passwords)，强制要求 OAuth 2.0，已无法通过标准 SMTP 协议直接发信。\n"
+                "【推荐方案】：请改用 QQ 邮箱 (465端口勾选直接SSL)、网易 163 邮箱或 Gmail 发信；您仍可在“收件人”一栏填写您的 Outlook 邮箱接收推送！"
+            )
+            logger.error(err_msg)
+            raise RuntimeError(err_msg)
+
         envelope_from = self._get_envelope_from()
         if not envelope_from:
             raise ValueError("发件人地址无效，请填写正确的发件人或登录邮箱账号")
@@ -259,10 +270,10 @@ class EmailNotifier:
                 tips.append("【网易邮箱客户端授权码】网易 163/126 邮箱必须使用客户端专用授权码，不可使用日常登录密码。")
                 tips.append("【端口设置】网易邮箱请使用 465 端口并勾选【使用直接 SSL】（网易不支持 587 端口）。")
             elif is_outlook:
-                tips.append("【代理/VPN 拦截 587 端口】若开启了科学上网/Clash/VPN（特别是 TUN 虚拟网卡模式），绝大多数境外代理节点默认封锁了 587/25 端口以防垃圾邮件，会导致连接被代理秒掐断。请在代理软件中将 smtp-mail.outlook.com 和 smtp.office365.com 设为直连 (DIRECT) 或临时退出代理。")
-                tips.append("【微软专用应用密码】微软已弃用普通日常登录密码 (Basic Auth)，必须在微软账户开启两步验证后，在【高级安全选项 -> 应用密码】中生成专属 16 位应用密码填入。")
-                tips.append("【端口与 SSL 匹配】Outlook 推荐 587 端口并【取消勾选使用直接 SSL】（必须走 STARTTLS 协商）。")
-                tips.append("【企业版 SMTP AUTH】若为 Office 365 组织/企业邮箱，需在 Microsoft 365 管理中心为该用户勾选【经过身份验证的 SMTP】功能。")
+                tips.append("【微软官方政策限制】微软已于 2024 年 9 月 16 日全面废止个人版 Outlook/Hotmail 账户的基本认证 (Basic Auth) 与应用密码 (App Passwords)，强制要求 OAuth 2.0，因此个人版微软邮箱无法作为 SMTP 发信端。\n   👉 强烈建议：改用 QQ 邮箱 (465 SSL)、网易 163 邮箱或 Gmail 发信，将您的 Outlook 邮箱填在“收件人”一栏即可正常接收推送。")
+                tips.append("【企业版前提】若为企业版/教育版 Office 365 邮箱，必须由管理员在 Microsoft 365 管理中心为该用户勾选【经过身份验证的 SMTP (Authenticated SMTP)】功能。")
+                tips.append("【代理/VPN 拦截 587 端口】若开启了科学上网/Clash/VPN，由于海外代理节点默认封锁 587 端口以防垃圾邮件，会导致连接被代理秒掐断。请在代理软件中将微软服务器设为直连 (DIRECT) 或临时退出代理。")
+                tips.append("【端口与 SSL 匹配】Outlook/Office365 推荐 587 端口并【取消勾选使用直接 SSL】（必须走 STARTTLS 协商）。")
             else:
                 tips.append("【SSL 端口匹配】通常 465 端口需勾选【使用直接 SSL】；587 或 25 端口需取消勾选（走 STARTTLS）。")
                 tips.append("【专用授权码】多数主流邮件服务商强制要求使用【客户端应用密码/授权码】，禁止使用普通登录密码。")

@@ -97,16 +97,17 @@ notifications:
     call_wxpusher_uids: []
 
   # 3. 邮件推送 (SMTP)
+  # 注意：个人版 Outlook 已于 2024 年底被微软全面关闭 SMTP 应用密码，无法作为发件端；推荐使用 QQ 邮箱、163 邮箱或 Gmail 发信。
   email:
     enabled: false
-    smtp_host: "smtp-mail.outlook.com"
-    smtp_port: 587
-    use_ssl: false                      # 465 端口填 true，587 端口填 false (STARTTLS)
-    username: "your_email@outlook.com"
-    password: "your_app_password"       # 邮箱授权码 / 应用密码
-    from_addr: "your_email@outlook.com"
+    smtp_host: "smtp.qq.com"
+    smtp_port: 465
+    use_ssl: true                       # 465 端口填 true (直接 SSL)，587 端口填 false (STARTTLS)
+    username: "your_email@qq.com"
+    password: "your_16char_auth_code"   # 邮箱专属授权码 / 应用密码 (QQ 邮箱请在网页设置生成 16 位授权码，切勿填日常密码)
+    from_addr: ""                       # 留空自动使用登录账号
     to_addrs:
-      - "your_email@outlook.com"
+      - "your_email@outlook.com"        # 接收端可正常填写您的 Outlook / QQ / 任意常用邮箱
     # 来电提醒独立配置
     call_enabled: true
     call_use_custom: false

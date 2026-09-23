@@ -67,7 +67,7 @@
 - **飞书 (Feishu)**：群机器人 Webhook + 飞书多维表格 (Bitable) 短信与来电双工作表持久化归档；
 - **微信推送**：支持企业微信群机器人 (WeCom Bot) 及 WxPusher 微信个人公众号推送；
 - **钉钉 (DingTalk)**：群机器人 Webhook，支持加签 (Secret) 与自定义关键词；
-- **邮件推送 (SMTP)**：支持 Outlook、QQ、163、Gmail 等各类 SMTP 邮箱；
+- **邮件推送 (SMTP)**：支持 QQ 邮箱、163/126 网易邮箱、Gmail 等各类标准 SMTP 服务（注：个人版 Outlook 已于 2024 年底被微软全面关闭 SMTP 应用密码，无法作为发信端，但可作为收件端正常接收）；
 - **Telegram**：支持 Telegram Bot Token + Chat ID + HTTP/SOCKS5 代理；
 - **自定义 Webhook**：支持向任意自有接口 POST JSON 数据（灵活对接 Home Assistant、Node-RED 等自建智能家居服务）；
 - **独立来电通知**：所有渠道均支持为未接来电配置独立开关与独立 Webhook。

@@ -184,33 +184,55 @@ class TestEmailPush(unittest.TestCase):
         self.assertIn("QQ 邮箱专用授权码排查", err_text)
         self.assertIn("POP3/SMTP", err_text)
 
+    def test_personal_outlook_rejected_proactively(self):
+        # 微软个人版账号 (@outlook.com / @hotmail.com) 在发信前被主动明确拦截
+        notifier = EmailNotifier(
+            smtp_host="smtp-mail.outlook.com",
+            smtp_port=587,
+            use_ssl=False,
+            username="myaccount@outlook.com",
+            password="any_password",
+            from_addr="",
+            to_addrs=["target@example.com"],
+        )
+        with self.assertRaises(RuntimeError) as ctx:
+            notifier.send_sms_notification({
+                "sender": "10086",
+                "content": "test",
+                "readable_date": "2026-09-24",
+            })
+        err_msg = str(ctx.exception)
+        self.assertIn("微软个人版 Outlook/Hotmail 邮箱不可用作 SMTP 发信端", err_msg)
+        self.assertIn("2024 年 9 月 16 日", err_msg)
+        self.assertIn("OAuth 2.0", err_msg)
+
     @patch("smtplib.SMTP")
-    def test_outlook_disconnected_diagnosis(self, mock_smtp):
+    def test_office365_disconnected_diagnosis(self, mock_smtp):
         mock_server = MagicMock()
         mock_server.has_extn.return_value = True
         mock_server.login.side_effect = smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
         mock_smtp.return_value = mock_server
 
         notifier = EmailNotifier(
-            smtp_host="smtp-mail.outlook.com",
+            smtp_host="smtp.office365.com",
             smtp_port=587,
             use_ssl=False,
-            username="test@outlook.com",
+            username="admin@corp-domain.com",
             password="pwd",
             from_addr="",
-            to_addrs=["target@outlook.com"],
+            to_addrs=["target@corp-domain.com"],
         )
 
         with self.assertRaises(RuntimeError) as ctx:
             notifier.send_sms_notification({
                 "sender": "10086",
                 "content": "test",
-                "readable_date": "2026-09-23",
+                "readable_date": "2026-09-24",
             })
         err_text = str(ctx.exception)
         self.assertIn("Connection unexpectedly closed", err_text)
-        self.assertIn("代理/VPN 拦截 587 端口", err_text)
-        self.assertIn("微软专用应用密码", err_text)
+        self.assertIn("微软官方政策限制", err_text)
+        self.assertIn("企业版前提", err_text)
 
 
 if __name__ == "__main__":
