@@ -429,7 +429,7 @@ async function handleInit(e) {
                 succ.style.display = 'block';
                 succ.textContent = '🎉 管理员账号初始化成功，正在进入控制台...';
             }
-            setTimeout(() => { window.location.href = '/'; }, 1000);
+            setTimeout(() => { window.location.replace('/'); }, 250);
         } else {
             if (err) {
                 err.style.display = 'block';
@@ -536,7 +536,7 @@ async function handleLogin(e) {
 
         if (res.success) {
             if (btn) btn.textContent = '验证成功，正在跳转...';
-            window.location.href = '/';
+            window.location.replace('/');
         } else if (res.requires_totp) {
             if (totpBox) totpBox.style.display = 'block';
             if (isRecoveryMode) {
@@ -752,7 +752,7 @@ async function handleForgotReset(e) {
                 succ.style.display = 'block';
                 succ.textContent = '🎉 密码重置成功，正在自动登录进入控制台...';
             }
-            setTimeout(() => { window.location.href = '/'; }, 1000);
+            setTimeout(() => { window.location.replace('/'); }, 250);
         } else {
             if (err) {
                 err.style.display = 'block';

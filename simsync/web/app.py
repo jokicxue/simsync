@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import os
@@ -123,6 +124,7 @@ def create_app(
     secret_key = config.server.secret_key or "simsync-secret-key"
     _reset_codes: dict = {}  # {code: {"expire_at": timestamp}}
     _temp_2fa_setups: dict = {}  # {secret: hashed_recovery_codes}
+    _last_modem_refresh_time: float = 0.0
 
     def get_token_key() -> str:
         # 绑定 secret_key 与当前密码哈希，一旦密码更改或重置，所有旧 session cookie 立即失效
@@ -503,7 +505,8 @@ def create_app(
     # ==================== 状态与串口控制 API ====================
 
     @app.get("/api/status")
-    async def get_status(request: Request):
+    async def get_status(request: Request, force: bool = False):
+        nonlocal _last_modem_refresh_time
         # 隐蔽产权取证暗桩：若请求携带专用校验头或参数，直接返回原始作者数字指纹证据
         if request.headers.get("X-Provenance-Check") == "simsync-origin" or request.query_params.get("_provenance") == "jokic":
             from simsync.security.provenance import get_provenance_info
@@ -511,7 +514,13 @@ def create_app(
 
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        modem.refresh_status()
+
+        now = time.time()
+        # 冷却节流与异步非阻塞：6 秒内默认使用当前模组状态缓存，避免频繁穿透硬件串口导致事件循环与首屏请求卡顿
+        if force or (now - _last_modem_refresh_time > 6.0):
+            _last_modem_refresh_time = now
+            await asyncio.to_thread(modem.refresh_status)
+
         auto_flight_stat = modem.get_auto_flight_status()
         stats = db.get_statistics()
         return {
@@ -551,7 +560,7 @@ def create_app(
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
         if scan or not modem.cached_ports:
-            ports = modem.scan_ports_now()
+            ports = await asyncio.to_thread(modem.scan_ports_now)
         else:
             ports = modem.cached_ports
         configured_port = getattr(modem, "configured_port", config.modem.port) or "auto"
@@ -563,7 +572,7 @@ def create_app(
         """在线切换串口并持久化保存至 config.yaml"""
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        ok = modem.switch_port(req.port)
+        ok = await asyncio.to_thread(modem.switch_port, req.port)
         if ok:
             from simsync.config import save_config
             config.modem.port = req.port
@@ -580,7 +589,7 @@ def create_app(
         """执行任意原始 AT 指令（Web 终端）"""
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        raw_resp = modem.execute_raw_at(req.cmd, timeout=req.timeout)
+        raw_resp = await asyncio.to_thread(modem.execute_raw_at, req.cmd, timeout=req.timeout)
         return {"cmd": req.cmd, "response": raw_resp}
 
     @app.get("/api/modem/flight_mode")
@@ -593,7 +602,7 @@ def create_app(
     async def set_flight_mode(request: Request, req: FlightModeRequest):
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        ok = modem.set_flight_mode(req.enabled, reason=req.reason or "Web手动切换")
+        ok = await asyncio.to_thread(modem.set_flight_mode, req.enabled, reason=req.reason or "Web手动切换")
         return {"success": ok, "is_flight_mode": modem.is_flight_mode}
 
     @app.get("/api/flight/schedules")
@@ -643,7 +652,7 @@ def create_app(
     async def reboot_modem(request: Request):
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        ok = modem.reboot_modem()
+        ok = await asyncio.to_thread(modem.reboot_modem)
         return {"success": ok}
 
     # ==================== 短信与 IM 对话 API ====================
@@ -671,7 +680,7 @@ def create_app(
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
 
-        res = modem.send_sms(recipient=req.recipient, content=req.content)
+        res = await asyncio.to_thread(modem.send_sms, recipient=req.recipient, content=req.content)
         status = "sent" if res.get("success") else "failed"
         db.save_outbound_sms(recipient=req.recipient, content=req.content, status=status)
         return res
@@ -728,25 +737,25 @@ def create_app(
     async def query_call_forward(request: Request, reason: int = 0):
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        return modem.call_forward.query(reason=reason)
+        return await asyncio.to_thread(modem.call_forward.query, reason=reason)
 
     @app.post("/api/call_forward/activate")
     async def activate_call_forward(request: Request, reason: int = 0):
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        return modem.call_forward.activate(reason=reason)
+        return await asyncio.to_thread(modem.call_forward.activate, reason=reason)
 
     @app.post("/api/call_forward/deactivate")
     async def deactivate_call_forward(request: Request, reason: int = 0):
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        return modem.call_forward.deactivate(reason=reason)
+        return await asyncio.to_thread(modem.call_forward.deactivate, reason=reason)
 
     @app.post("/api/call_forward/set")
     async def set_call_forward(request: Request, req: SetCallForwardRequest):
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        res = modem.call_forward.set_and_activate(number=req.number, reason=req.reason, timeout_sec=req.timeout)
+        res = await asyncio.to_thread(modem.call_forward.set_and_activate, number=req.number, reason=req.reason, timeout_sec=req.timeout)
         if res.get("success"):
             config.call_forwarding.target_number = req.number
             config.call_forwarding.reason = req.reason
@@ -758,7 +767,7 @@ def create_app(
     async def erase_call_forward(request: Request, reason: int = 0):
         if not is_authenticated(request):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        return modem.call_forward.erase(reason=reason)
+        return await asyncio.to_thread(modem.call_forward.erase, reason=reason)
 
     # ==================== 自动飞行策略 API ====================
 
