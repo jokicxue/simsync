@@ -15,12 +15,9 @@
   <a href="#faq"><b>❓ 常见问题 FAQ</b></a>
 </p>
 
-<!-- 🖼️ 建议截图位置 1：项目门面图（Web 控制台首页概览，建议保存为 docs/images/dashboard.png 并取消下方注释） -->
-<!--
 <p align="center">
   <img src="docs/images/dashboard.png" alt="SimSync Web Console 控制台概览" width="95%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
 </p>
--->
 
 ---
 
@@ -47,12 +44,9 @@
 - **字数统计与分包估算**：实时统计字符数，自动提示约合几条短信，避免超出计费预期。
 - **PDU 工业级解码**：原生支持 UCS2 中文、特殊字符与长短信拼接，`+CNMI` 主动上报秒级推送。
 
-<!-- 🖼️ 建议截图位置 2：短信对话中心气泡流（建议保存为 docs/images/chat.png 并取消下方注释） -->
-<!--
 <p align="center">
   <img src="docs/images/chat.png" alt="IM 气泡式短信对话中心" width="90%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
 </p>
--->
 
 ### 5. 📞 呼叫拦截、核心网转移与来电记录
 - **0.5s 极速挂断防扣费**：监测到来电振铃（`RING`）瞬时发送 `ATH` 挂断，避免产生高额漫游接听费。
@@ -78,12 +72,9 @@
 - **自定义 Webhook**：支持向任意自有接口 POST JSON 数据（灵活对接 Home Assistant、Node-RED 等自建智能家居服务）；
 - **独立来电通知**：所有渠道均支持为未接来电配置独立开关与独立 Webhook。
 
-<!-- 🖼️ 建议截图位置 3：多渠道推送效果或飞书多维表格归档（建议保存为 docs/images/notifications.png 并取消下方注释） -->
-<!--
 <p align="center">
-  <img src="docs/images/notifications.png" alt="多渠道告警推送与飞书多维表格归档" width="90%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+  <img src="docs/images/notifications_push.png" alt="多渠道告警推送与通知管理" width="90%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
 </p>
--->
 
 > 📖 **各渠道详细配置教程、飞书多维表格字段与比对补录规范请参阅**：[多渠道推送与多维表格配置指南](NOTIFICATIONS.md)
 
@@ -99,12 +90,9 @@
 - **热切换串口**：发现新设备无需重启，在界面直接切换绑定。
 - **交互式 AT 终端**：内置 Web 终端，支持向模组发送任意原始 AT 指令并实时查看回显。
 
-<!-- 🖼️ 建议截图位置 4：交互式 AT 终端执行效果（建议保存为 docs/images/terminal.png 并取消下方注释） -->
-<!--
 <p align="center">
   <img src="docs/images/terminal.png" alt="在线交互式 AT 终端" width="90%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
 </p>
--->
 
 ### 11. 📥 Android 原生 XML 备份与双轨导出
 - **SMS Backup & Restore XML**：一键导出标准短信备份 XML，可在手机端使用《SMS Backup & Restore》App 完整无损恢复至手机原生短信。
@@ -160,30 +148,24 @@ SimSync 之所以理论上可以适用多种 4G 模组，核心在于以下设�
 <a id="deploy"></a>
 ## 🚀 快速部署
 
-### 方式一：Docker 单行命令极速启动（推荐，零门槛开箱即用）
+### 方式一：单行命令极速启动（推荐，零门槛直接运行）
 
-无需预先创建任何 `docker-compose.yml`，也无需手动拷贝或编写配置文件。直接在宿主机终端中执行以下单行命令即可启动：
+无需预先创建任何 `docker-compose.yml`，也无需手动拷贝或编写配置文件。**整行直接复制**并在终端执行即可（无任何断行反斜杠，避免任何换行粘贴错误，全平台终端通用）：
 
 ```bash
-docker run -d \
-  --name simsync \
-  --restart unless-stopped \
-  --network host \
-  --privileged \
-  -v $(pwd)/data:/app/data \
-  -v /dev:/dev \
-  -e TZ=Asia/Shanghai \
-  jokic/simsync:latest
+docker run -d --name simsync --restart unless-stopped --network host --privileged -v $(pwd)/data:/app/data -v /dev:/dev -e TZ=Asia/Shanghai jokic/simsync:latest
 ```
 
-> 💡 **使用说明与小贴士**：
-> - **开箱即用，自动初始化**：容器启动时会自动在挂载的 `./data` 目录下初始化创建 SQLite 数据库与默认配置文件，**完全不需要提前建文件或拷贝模板**。
-> - **进入管理控制台**：命令执行完成后，直接在浏览器中打开：  
->   `http://<宿主机IP>:8088`  
->   跟随页面上的引导设置管理员账号与密码即可开始使用！
-> - **自定义数据持久化目录**：若需指定保存路径（例如群晖 NAS），将 `$(pwd)/data` 替换为自定义绝对路径（如 `/volume1/docker/simsync/data`）即可。
-> - **桥接网络（可选）**：默认推荐使用 `--network host` 模式性能最高；若宿主机不便使用 host 模式，可改为常规端口映射：`-p 8088:8088`。
-> - **后续调整与出问题排查**：若需修改配置，后续直接编辑 `./data/config.yaml` 或直接在 Web 界面「系统设置」中修改即可；若遇到问题或后续希望通过配置文件长期维护，可随时改用下方的「方式二（Docker Compose）」。
+> 💡 **命令各参数解析（按需了解）**：
+> - `--name simsync`：容器命名为 `simsync`
+> - `--restart unless-stopped`：开机自启与异常自动拉起
+> - `--network host`：采用 host 主机网络模式（访问速度与连通性最优，免配置端口映射；若不想使用 host 模式可替换为端口映射参数 `-p 8088:8088`）
+> - `--privileged`：开启特权模式（解决容器免驱读写 USB 串口权限的核心保障）
+> - `-v $(pwd)/data:/app/data`：数据挂载目录（存放 SQLite 数据库与配置文件；若使用群晖等绝对路径可替换为例如 `/volume1/docker/simsync/data`）
+> - `-v /dev:/dev`：直通宿主机设备节点（实现串口自动探测与热插拔）
+> - `-e TZ=Asia/Shanghai`：配置容器时区为北京时间
+> 
+> 🚀 **启动后访问**：命令执行完毕后，直接在浏览器中打开 `http://<宿主机IP>:8088`，进入初始化向导设置管理员账号与密码即可开箱即用！出问题或后续想调整配置，直接编辑 `./data/config.yaml` 或随时改用下方的 Compose 方式。
 
 ---
 

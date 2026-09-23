@@ -7,6 +7,10 @@ SimSync 支持将接收到的蜂窝短信与未接来电实时推送到多种渠
 - **Web 端一键测试**：在 Web 控制台的「📢 推送渠道设置」中可实时发送测试卡片。
 - **磁盘加密存储**：开启 AES-256 加密后，所有 Webhook Token、邮箱密码等均以密文形式存储在 `config.yaml` 中。
 
+<p align="center">
+  <img src="docs/images/notifications_push.png" alt="SimSync 推送渠道配置界面" width="95%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+</p>
+
 ---
 
 ## 目录
