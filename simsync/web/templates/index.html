@@ -2581,8 +2581,8 @@
                     <div class="form-group">
                         <label class="form-label">SMTP 服务器 / 端口</label>
                         <div style="display: flex; gap: 8px;">
-                            <input type="text" id="notif-email-host" class="form-input" value="{{ notifications.email.smtp_host }}" placeholder="smtp.example.com">
-                            <input type="number" id="notif-email-port" class="form-input" style="width: 110px;" value="{{ notifications.email.smtp_port }}" placeholder="587">
+                            <input type="text" id="notif-email-host" class="form-input" value="{{ notifications.email.smtp_host }}" placeholder="smtp.qq.com">
+                            <input type="number" id="notif-email-port" class="form-input" style="width: 110px;" value="{{ notifications.email.smtp_port }}" placeholder="465" oninput="if(this.value==='465'){document.getElementById('notif-email-ssl').checked=true;}else if(this.value==='587'||this.value==='25'){document.getElementById('notif-email-ssl').checked=false;}">
                         </div>
                     </div>
                     <div class="form-group">
@@ -2593,7 +2593,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">SMTP 登录账号 (用户名 / 邮箱地址)</label>
-                        <input type="text" id="notif-email-user" class="form-input" value="{{ notifications.email.username }}" placeholder="your_email@example.com">
+                        <input type="text" id="notif-email-user" class="form-input" value="{{ notifications.email.username }}" placeholder="your_email@qq.com">
                     </div>
                     <div class="form-group">
                         <label class="form-label">SMTP 登录密码 / 授权码 (客户端专用授权码)</label>
@@ -2601,10 +2601,16 @@
                             <input type="password" id="notif-email-pass" class="form-input" value="{{ notifications.email.password }}" placeholder="密码 / 应用专用授权码">
                             <button type="button" class="btn-toggle-eye" onclick="toggleInputVisibility('notif-email-pass', this)" title="显示/隐藏明文">👁️</button>
                         </div>
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; line-height: 1.4;">
+                            💡 提示：若使用 QQ 邮箱、163/126 邮箱、Gmail、Outlook 等，<b>必须填写邮箱网页端生成的【专属授权码 / 应用密码】</b>，切勿填写日常网页登录密码，否则 SMTP 会报 535 认证失败。
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">发件人地址 (From Header)</label>
-                        <input type="text" id="notif-email-from" class="form-input" value="{{ notifications.email.from_addr }}" placeholder="simsync@example.com">
+                        <label class="form-label">发件人地址 (From Header，留空自动匹配)</label>
+                        <input type="text" id="notif-email-from" class="form-input" value="{{ notifications.email.from_addr }}" placeholder="留空则自动使用上述登录账号 (推荐)">
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; line-height: 1.4;">
+                            💡 提示：建议留空。国内主流邮件服务商（QQ/网易等）强制发件人信封与登录账号完全一致，若自定义了不相符的发件人将被服务器拒绝发送。
+                        </div>
                     </div>
                 </div>
 
@@ -2614,7 +2620,7 @@
                         <span>💬 短信推送收件箱</span>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label">短信推送收件人邮箱 (多个以逗号分隔)</label>
+                        <label class="form-label">短信推送收件人邮箱 (多个以中/英文逗号或分号分隔)</label>
                         <input type="text" id="notif-email-to" class="form-input" value="{{ notifications.email.to_addrs | join(',') }}" placeholder="user1@example.com, user2@example.com">
                     </div>
                 </div>
@@ -2644,7 +2650,7 @@
                         </div>
                         <div id="email-call-custom-box" style="display: {% if notifications.email.call_use_custom %}block{% else %}none{% endif %};">
                             <div class="form-group" style="margin-top: 8px; margin-bottom: 0;">
-                                <label class="form-label">独立来电推送收件人邮箱 (多个以逗号分隔)</label>
+                                <label class="form-label">独立来电推送收件人邮箱 (多个以中/英文逗号或分号分隔)</label>
                                 <input type="text" id="notif-email-call-to" class="form-input" value="{{ notifications.email.call_to_addrs | join(',') if notifications.email.call_to_addrs else '' }}" placeholder="call_alert@example.com">
                             </div>
                         </div>
@@ -4619,12 +4625,12 @@ async function saveAllNotifications(options = {}) {
             },
             wxpusher: {
                 app_token: document.getElementById('notif-wxpusher-token').value.trim(),
-                uids: document.getElementById('notif-wxpusher-uids').value.split(',').map(s => s.trim()).filter(Boolean)
+                uids: document.getElementById('notif-wxpusher-uids').value.split(/[,，;；\s]+/).map(s => s.trim()).filter(Boolean)
             },
             call_enabled: document.getElementById('notif-wechat-call-enabled').checked,
             call_use_custom: document.getElementById('notif-wechat-call-custom').checked,
             call_wecom_webhook_url: document.getElementById('notif-wecom-call-url').value.trim(),
-            call_wxpusher_uids: document.getElementById('notif-wxpusher-call-uids').value.split(',').map(s => s.trim()).filter(Boolean)
+            call_wxpusher_uids: document.getElementById('notif-wxpusher-call-uids').value.split(/[,，;；\s]+/).map(s => s.trim()).filter(Boolean)
         },
         email: {
             enabled: document.getElementById('notif-email-enabled').checked,
@@ -4634,10 +4640,10 @@ async function saveAllNotifications(options = {}) {
             username: document.getElementById('notif-email-user').value.trim(),
             password: document.getElementById('notif-email-pass').value.trim(),
             from_addr: document.getElementById('notif-email-from').value.trim(),
-            to_addrs: document.getElementById('notif-email-to').value.split(',').map(s => s.trim()).filter(Boolean),
+            to_addrs: document.getElementById('notif-email-to').value.split(/[,，;；\s]+/).map(s => s.trim()).filter(Boolean),
             call_enabled: document.getElementById('notif-email-call-enabled').checked,
             call_use_custom: document.getElementById('notif-email-call-custom').checked,
-            call_to_addrs: document.getElementById('notif-email-call-to').value.split(',').map(s => s.trim()).filter(Boolean)
+            call_to_addrs: document.getElementById('notif-email-call-to').value.split(/[,，;；\s]+/).map(s => s.trim()).filter(Boolean)
         },
         dingtalk: {
             enabled: document.getElementById('notif-dingtalk-enabled').checked,

@@ -184,10 +184,10 @@ class NotificationManager:
                 if event_type == "call":
                     custom_to = cfg.email.call_to_addrs if cfg.email.call_use_custom else None
                     self.email.send_call_notification(test_caller, test_action, custom_to)
-                    return {"success": True, "message": "测试来电提醒邮件已发送"}
+                    return {"success": True, "message": "测试来电提醒邮件已成功投递至 SMTP 服务器，请查看收件箱（若未收到请留意垃圾箱）"}
                 else:
                     self.email.send_sms_notification(sample_sms)
-                    return {"success": True, "message": "测试短信邮件已发送"}
+                    return {"success": True, "message": "测试短信邮件已成功投递至 SMTP 服务器，请查看收件箱（若未收到请留意垃圾箱）"}
 
             elif channel == "dingtalk":
                 if not self.dingtalk:
