@@ -6,8 +6,25 @@
   <strong>100% 绝对 0 漫游流量消耗规范 · 现代简洁 Web 控制台 · 多渠道告警推送 · 2FA 安全防护</strong>
 </p>
 
+<p align="center">
+  <a href="#deploy"><b>🚀 极速部署</b></a> &nbsp;•&nbsp;
+  <a href="#notifications"><b>📢 推送设置指南</b></a> &nbsp;•&nbsp;
+  <a href="NOTIFICATIONS.md"><b>📖 推送配置详细文档</b></a> &nbsp;•&nbsp;
+  <a href="#hardware"><b>🛠️ 硬件与串口</b></a> &nbsp;•&nbsp;
+  <a href="#config"><b>⚙️ 配置文件说明</b></a> &nbsp;•&nbsp;
+  <a href="#faq"><b>❓ 常见问题 FAQ</b></a>
+</p>
+
+<!-- 🖼️ 建议截图位置 1：项目门面图（Web 控制台首页概览，建议保存为 docs/images/dashboard.png 并取消下方注释） -->
+<!--
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="SimSync Web Console 控制台概览" width="95%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+</p>
+-->
+
 ---
 
+<a id="features"></a>
 ## 🌟 核心特性
 
 ### 1. 🛡️ 100% 绝对 0 漫游流量消耗
@@ -23,11 +40,19 @@
 - **手动设置与双重持久化**：国内各大运营商出厂通常未将号码写入 SIM 芯片，用户可在 Web 界面直接录入修改。系统不仅将号码持久化保存至 `config.yaml`，还会尝试通过 `AT+CPBW` 指令将号码同步写入 SIM 卡硬件存储（EF_MSISDN）。
 - **全站醒目展示**：在左侧边栏顶端、移动端顶栏以及系统概览卡片中常驻展示。
 
+<a id="chat"></a>
 ### 4. 💬 IM 气泡式短信对话中心
 - **双向即时通讯**：采用类 Telegram / 微信的联系人会话列表与对话气泡流，支持一键发起新对话。
 - **会话草稿自动保持**：切换不同联系人时，未发送的文字草稿自动保留在输入框中，无需担心误切换丢失。
 - **字数统计与分包估算**：实时统计字符数，自动提示约合几条短信，避免超出计费预期。
 - **PDU 工业级解码**：原生支持 UCS2 中文、特殊字符与长短信拼接，`+CNMI` 主动上报秒级推送。
+
+<!-- 🖼️ 建议截图位置 2：短信对话中心气泡流（建议保存为 docs/images/chat.png 并取消下方注释） -->
+<!--
+<p align="center">
+  <img src="docs/images/chat.png" alt="IM 气泡式短信对话中心" width="90%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+</p>
+-->
 
 ### 5. 📞 呼叫拦截、核心网转移与来电记录
 - **0.5s 极速挂断防扣费**：监测到来电振铃（`RING`）瞬时发送 `ATH` 挂断，避免产生高额漫游接听费。
@@ -42,6 +67,7 @@
 ### 7. ⏰ 定时保号计划任务
 - 针对各类海外卡（如澳洲 Aldi Mobile、英国 giffgaff、香港 Club SIM、美国 Ultra Mobile 等）的有效期保号规则，设定定期向特定号码（如运营商余额查询号）自动发送短信，防止停机销卡。
 
+<a id="notifications"></a>
 ### 8. 📢 6 大多渠道推送与来电独立告警
 支持短信与来电独立开启、独立配置推送地址：
 - **飞书 (Feishu)**：群机器人 Webhook + 飞书多维表格 (Bitable) 短信与来电双工作表持久化归档；
@@ -51,6 +77,13 @@
 - **Telegram**：支持 Telegram Bot Token + Chat ID + HTTP/SOCKS5 代理；
 - **自定义 Webhook**：支持向任意自有接口 POST JSON 数据（灵活对接 Home Assistant、Node-RED 等自建智能家居服务）；
 - **独立来电通知**：所有渠道均支持为未接来电配置独立开关与独立 Webhook。
+
+<!-- 🖼️ 建议截图位置 3：多渠道推送效果或飞书多维表格归档（建议保存为 docs/images/notifications.png 并取消下方注释） -->
+<!--
+<p align="center">
+  <img src="docs/images/notifications.png" alt="多渠道告警推送与飞书多维表格归档" width="90%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+</p>
+-->
 
 > 📖 **各渠道详细配置教程、飞书多维表格字段与比对补录规范请参阅**：[多渠道推送与多维表格配置指南](NOTIFICATIONS.md)
 
@@ -66,6 +99,13 @@
 - **热切换串口**：发现新设备无需重启，在界面直接切换绑定。
 - **交互式 AT 终端**：内置 Web 终端，支持向模组发送任意原始 AT 指令并实时查看回显。
 
+<!-- 🖼️ 建议截图位置 4：交互式 AT 终端执行效果（建议保存为 docs/images/terminal.png 并取消下方注释） -->
+<!--
+<p align="center">
+  <img src="docs/images/terminal.png" alt="在线交互式 AT 终端" width="90%" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+</p>
+-->
+
 ### 11. 📥 Android 原生 XML 备份与双轨导出
 - **SMS Backup & Restore XML**：一键导出标准短信备份 XML，可在手机端使用《SMS Backup & Restore》App 完整无损恢复至手机原生短信。
 - **Calls Backup & Restore XML**：一键导出通话记录备份 XML，同步恢复到手机原生通话记录。
@@ -76,6 +116,7 @@
 
 ---
 
+<a id="hardware"></a>
 ## 🛠️ 硬件支持与说明
 
 ### 1. 硬件支持说明
@@ -116,9 +157,39 @@ SimSync 之所以理论上可以适用多种 4G 模组，核心在于以下设�
 
 ---
 
+<a id="deploy"></a>
 ## 🚀 快速部署
 
-### 方式一：Docker Compose（推荐）
+### 方式一：Docker 单行命令极速启动（推荐，零门槛开箱即用）
+
+无需预先创建任何 `docker-compose.yml`，也无需手动拷贝或编写配置文件。直接在宿主机终端中执行以下单行命令即可启动：
+
+```bash
+docker run -d \
+  --name simsync \
+  --restart unless-stopped \
+  --network host \
+  --privileged \
+  -v $(pwd)/data:/app/data \
+  -v /dev:/dev \
+  -e TZ=Asia/Shanghai \
+  jokic/simsync:latest
+```
+
+> 💡 **使用说明与小贴士**：
+> - **开箱即用，自动初始化**：容器启动时会自动在挂载的 `./data` 目录下初始化创建 SQLite 数据库与默认配置文件，**完全不需要提前建文件或拷贝模板**。
+> - **进入管理控制台**：命令执行完成后，直接在浏览器中打开：  
+>   `http://<宿主机IP>:8088`  
+>   跟随页面上的引导设置管理员账号与密码即可开始使用！
+> - **自定义数据持久化目录**：若需指定保存路径（例如群晖 NAS），将 `$(pwd)/data` 替换为自定义绝对路径（如 `/volume1/docker/simsync/data`）即可。
+> - **桥接网络（可选）**：默认推荐使用 `--network host` 模式性能最高；若宿主机不便使用 host 模式，可改为常规端口映射：`-p 8088:8088`。
+> - **后续调整与出问题排查**：若需修改配置，后续直接编辑 `./data/config.yaml` 或直接在 Web 界面「系统设置」中修改即可；若遇到问题或后续希望通过配置文件长期维护，可随时改用下方的「方式二（Docker Compose）」。
+
+---
+
+### 方式二：Docker Compose 部署（适合偏好 Compose 文件维护）
+
+如果您更习惯通过 `docker-compose.yml` 文件统一管理与长期维护服务，或需要自定义配置参数：
 
 1. 在宿主机上创建部署目录：
    ```bash
@@ -126,48 +197,38 @@ SimSync 之所以理论上可以适用多种 4G 模组，核心在于以下设�
    cd /volume1/docker/simsync
    ```
 
-2. 下载或创建 `docker-compose.yml`：
+2. 创建 `docker-compose.yml`：
    ```yaml
    version: '3.8'
 
    services:
      simsync:
-       image: jokic/simsync:latest  # 或使用本地 build: .
+       image: jokic/simsync:latest
        container_name: simsync
        restart: unless-stopped
        network_mode: host
-       # 若使用桥接网络（非 host 模式），请取消下面注释并开启端口映射
-       #ports:
-       #  - "8088:8088"
+       # 若使用桥接网络（非 host 模式），可使用端口映射：
+       # ports:
+       #   - "8088:8088"
        volumes:
-         # 持久化存储目录：存放 sqlite 数据库和 config.yaml
          - ./data:/app/data
-         # 挂载宿主机全部设备节点，支持模组热插拔及串口自动探测
          - /dev:/dev
-       # 开启特权模式，解决 Docker 容器下串口设备读写权限问题
        privileged: true
        environment:
          - TZ=Asia/Shanghai
          - PYTHONUNBUFFERED=1
    ```
 
-3. 复制配置示例文件（可选，首次启动系统会自动生成默认配置）：
-   ```bash
-   cp config.example.yaml data/config.yaml
-   ```
-
-4. 启动服务：
+3. 启动服务（系统首次运行会自动生成默认配置与数据库）：
    ```bash
    docker-compose up -d
    ```
 
-5. 在浏览器中打开：
-   `http://<宿主机IP>:8088`
-   首次访问将引导您注册管理员账号与密码！
+4. 打开浏览器访问 `http://<宿主机IP>:8088`，进入向导设置管理员账号与密码即可。
 
 ---
 
-### 方式二：多 SIM 卡 / 多设备独立运行
+### 方式三：多 SIM 卡 / 多设备独立运行
 
 如果您有多个 USB 调制解调器（例如两张不同国家的 SIM 卡），可以通过 Docker Compose 启动两个独立服务，互相隔离、零干扰：
 
@@ -205,7 +266,7 @@ services:
 
 ---
 
-### 方式三：群晖 DSM Container Manager 图形化部署 (DSM 7.2+)
+### 方式四：群晖 DSM Container Manager 图形化部署 (DSM 7.2+)
 
 对于使用群晖 NAS 的用户，无需使用 SSH 命令行，直接在 DSM 界面中即可完成部署：
 
@@ -242,6 +303,7 @@ services:
 
 ---
 
+<a id="config"></a>
 ## ⚙️ 配置文件说明 (`config.yaml`)
 
 完整配置文件字段请参考项目根目录的 [`config.example.yaml`](config.example.yaml)，主要配置节点如下：
@@ -285,6 +347,7 @@ notifications:
 
 ---
 
+<a id="faq"></a>
 ## ❓ 常见问题 FAQ
 
 ### Q1: 群晖 NAS 无法识别 USB 模组串口 (`/dev/ttyUSB*` 不存在)？
