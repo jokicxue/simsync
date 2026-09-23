@@ -131,6 +131,59 @@ class TestEmailPush(unittest.TestCase):
         self.assertIn("SMTP 身份验证失败 (535)", str(ctx.exception))
         self.assertIn("专用授权码", str(ctx.exception))
 
+    def test_clean_auth_user(self):
+        # QQ 纯数字自动补全 @qq.com
+        notifier_qq = EmailNotifier(
+            smtp_host="smtp.qq.com",
+            smtp_port=465,
+            use_ssl=True,
+            username="12345678",
+            password="pwd",
+            from_addr="",
+            to_addrs=["target@qq.com"],
+        )
+        self.assertEqual(notifier_qq._clean_auth_user(), "12345678@qq.com")
+        self.assertEqual(notifier_qq._get_envelope_from(), "12345678@qq.com")
+
+        # 完整邮箱保持原样
+        notifier_full = EmailNotifier(
+            smtp_host="smtp.qq.com",
+            smtp_port=465,
+            use_ssl=True,
+            username="test@qq.com",
+            password="pwd",
+            from_addr="",
+            to_addrs=["target@qq.com"],
+        )
+        self.assertEqual(notifier_full._clean_auth_user(), "test@qq.com")
+
+    @patch("smtplib.SMTP_SSL")
+    def test_server_disconnected_diagnosis(self, mock_smtp_ssl):
+        mock_server = MagicMock()
+        mock_server.login.side_effect = smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
+        mock_smtp_ssl.return_value = mock_server
+
+        notifier = EmailNotifier(
+            smtp_host="smtp.qq.com",
+            smtp_port=465,
+            use_ssl=True,
+            username="12345678@qq.com",
+            password="wrong_password",
+            from_addr="",
+            to_addrs=["target@qq.com"],
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            notifier.send_sms_notification({
+                "sender": "10086",
+                "content": "test",
+                "readable_date": "2026-09-23",
+            })
+        err_text = str(ctx.exception)
+        self.assertIn("Connection unexpectedly closed", err_text)
+        self.assertIn("QQ 邮箱专用授权码排查", err_text)
+        self.assertIn("POP3/SMTP", err_text)
+
 
 if __name__ == "__main__":
     unittest.main()

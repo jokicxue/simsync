@@ -2602,7 +2602,7 @@
                             <button type="button" class="btn-toggle-eye" onclick="toggleInputVisibility('notif-email-pass', this)" title="显示/隐藏明文">👁️</button>
                         </div>
                         <div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; line-height: 1.4;">
-                            💡 提示：若使用 QQ 邮箱、163/126 邮箱、Gmail、Outlook 等，<b>必须填写邮箱网页端生成的【专属授权码 / 应用密码】</b>，切勿填写日常网页登录密码，否则 SMTP 会报 535 认证失败。
+                            💡 提示：若使用 QQ 邮箱、163/126 邮箱、Gmail、Outlook 等，<b>必须填写邮箱网页端生成的【专属授权码 / 应用密码】</b>（如 QQ 邮箱为 16 位字母授权码），切勿填写日常网页登录密码！QQ 邮箱密码错误或账号非完整邮箱会导致连接被服务器直接切断（报错 Connection unexpectedly closed）。465 端口请勾选直接 SSL。
                         </div>
                     </div>
                     <div class="form-group">
@@ -4635,7 +4635,7 @@ async function saveAllNotifications(options = {}) {
         email: {
             enabled: document.getElementById('notif-email-enabled').checked,
             smtp_host: document.getElementById('notif-email-host').value.trim(),
-            smtp_port: parseInt(document.getElementById('notif-email-port').value.trim(), 10) || 587,
+            smtp_port: parseInt(document.getElementById('notif-email-port').value.trim(), 10) || 465,
             use_ssl: document.getElementById('notif-email-ssl').checked,
             username: document.getElementById('notif-email-user').value.trim(),
             password: document.getElementById('notif-email-pass').value.trim(),

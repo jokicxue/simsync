@@ -47,21 +47,57 @@ class EmailNotifier:
                     clean_list.append(t)
         return clean_list
 
+    def _clean_auth_user(self) -> str:
+        """获取 SMTP 认证用户名。
+        若使用 QQ 邮箱或网易邮箱且仅填入了前缀（如纯数字 QQ 号），自动补全域名后缀，
+        防止因服务商协议校验导致连接被直接切断。
+        """
+        user = self.username.strip()
+        if not user:
+            return ""
+        if "@" not in user:
+            host = self.smtp_host.lower()
+            if "qq.com" in host and user.isdigit():
+                return f"{user}@qq.com"
+            elif "163.com" in host:
+                return f"{user}@163.com"
+            elif "126.com" in host:
+                return f"{user}@126.com"
+        return user
+
     def _get_envelope_from(self) -> str:
         """获取 SMTP 协议层发件人 (MAIL FROM)。
+        发件人信封地址必须是合法的邮箱格式 (包含 @ 符号)。
         针对 QQ 邮箱 (smtp.qq.com / exmail)、网易邮箱 (163/126) 等国内服务商，
-        发件人信封地址必须与认证用户名 (username) 一致，否则会被服务器返回 501/553 拒绝。
+        发件人信封地址通常需与认证用户名 (username) 一致，否则会被服务器返回 501/553 拒绝。
         若未配置发件人或发件人包含 example.com 占位符，自动使用 username。
         """
         clean_from = parseaddr(self.from_addr)[1].strip() if self.from_addr else ""
         clean_user = parseaddr(self.username)[1].strip() or self.username.strip()
 
+        # 针对常见邮件服务商，若用户名未带域名后缀，尝试自动补全
+        host_lower = self.smtp_host.lower()
+        if clean_user and "@" not in clean_user:
+            if "qq.com" in host_lower and clean_user.isdigit():
+                clean_user = f"{clean_user}@qq.com"
+            elif "163.com" in host_lower:
+                clean_user = f"{clean_user}@163.com"
+            elif "126.com" in host_lower:
+                clean_user = f"{clean_user}@126.com"
+
+        # 若配置了有效的 clean_from
         if clean_from and "@" in clean_from and "example.com" not in clean_from:
-            host_lower = self.smtp_host.lower()
+            # QQ/网易等严格校验一致性的服务商，若 clean_user 也是有效邮箱，优先使用 clean_user 避免 553
             if any(dom in host_lower for dom in ("qq.com", "163.com", "126.com", "yeah.net", "sina.com")):
-                return clean_user or clean_from
+                if clean_user and "@" in clean_user:
+                    return clean_user
             return clean_from
-        return clean_user
+
+        # 未配置发件人时，使用 clean_user（必须含 @）
+        if clean_user and "@" in clean_user:
+            return clean_user
+
+        return clean_from or clean_user
 
     def send_sms_notification(self, sms: Dict[str, Any]):
         subject = f"[SimSync] 收到来自 {sms.get('sender')} 的新短信"
@@ -184,12 +220,16 @@ class EmailNotifier:
             else:
                 server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=15)
                 server.ehlo()
-                if server.has_extn("starttls") or self.smtp_port == 587:
-                    server.starttls()
-                    server.ehlo()
+                if server.has_extn("starttls"):
+                    try:
+                        server.starttls()
+                        server.ehlo()
+                    except Exception as tls_err:
+                        logger.warning(f"STARTTLS 升级失败，继续使用现有信道: {tls_err}")
 
-            if self.username and self.password:
-                server.login(self.username, self.password)
+            auth_user = self._clean_auth_user()
+            if auth_user and self.password:
+                server.login(auth_user, self.password)
 
             server.sendmail(envelope_from, recipients, msg.as_string())
             logger.info(f"邮件通知发送成功: {recipients} (发件人: {envelope_from})")
@@ -200,6 +240,32 @@ class EmailNotifier:
                 f"SMTP 身份验证失败 (535)：用户名或授权码不正确。\n"
                 f"【重点排查】若使用 QQ 邮箱、163/126 邮箱、Gmail 等，必须在邮箱设置中生成【专用授权码/应用密码】，切勿使用网页日常登录密码！"
                 f"（服务商原始响应: {raw_err}）"
+            )
+            logger.error(err_msg)
+            raise RuntimeError(err_msg) from e
+        except smtplib.SMTPServerDisconnected as e:
+            raw_err = str(e)
+            host_lower = self.smtp_host.lower()
+            is_qq = "qq.com" in host_lower
+            is_163 = "163.com" in host_lower
+
+            tips = []
+            if is_qq:
+                tips.append("【QQ 邮箱专用授权码排查】若密码填写了日常登录密码，或授权码过期/错误，QQ 邮箱服务器会直接主动切断连接 (Connection unexpectedly closed) 而非返回 535。\n   👉 请登录 QQ 邮箱网页版 -> 设置 -> 账户 -> 开启 POP3/SMTP 服务，生成专属 16 位英文授权码并填入密码栏。")
+                tips.append("【账号格式】QQ 邮箱登录账号请填写完整邮箱地址（如 xxxxxx@qq.com）。")
+                tips.append("【端口与 SSL 匹配】QQ 邮箱推荐端口 465 且勾选【使用直接 SSL】；若使用 587 端口请取消勾选直接 SSL。")
+            elif is_163:
+                tips.append("【网易邮箱客户端授权码】网易 163/126 邮箱必须使用客户端专用授权码，不可使用日常登录密码。")
+                tips.append("【端口设置】网易邮箱请使用 465 端口并勾选【使用直接 SSL】（网易不支持 587 端口）。")
+            else:
+                tips.append("【SSL 端口匹配】通常 465 端口需勾选【使用直接 SSL】；587 或 25 端口需取消勾选（走 STARTTLS）。")
+                tips.append("【专用授权码】多数主流邮件服务商强制要求使用【客户端应用密码/授权码】，禁止使用普通登录密码。")
+                tips.append("【发件人校验】部分邮件服务器要求发件人信封地址与登录账号必须完全一致。")
+
+            err_msg = (
+                f"SMTP 连接被服务器意外关闭 (Connection unexpectedly closed)。\n"
+                + "\n".join(f"• {t}" for t in tips)
+                + f"\n（当前配置: {self.smtp_host}:{self.smtp_port}，原始信息: {raw_err}）"
             )
             logger.error(err_msg)
             raise RuntimeError(err_msg) from e
