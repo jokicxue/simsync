@@ -187,7 +187,7 @@
             <p>检测到系统尚未设置管理员，请先设置管理账号与密码</p>
         </div>
 
-        <form onsubmit="handleInit(event)">
+        <form action="javascript:void(0);" onsubmit="handleInit(event); return false;">
             <div class="field">
                 <label class="label" for="init-username">管理员账号</label>
                 <input type="text" id="init-username" class="input" placeholder="例如: admin" value="admin" autocomplete="username" required>
@@ -221,7 +221,7 @@
             <p>公网安全保护已启用，请验证管理员身份</p>
         </div>
 
-        <form onsubmit="handleLogin(event)">
+        <form action="javascript:void(0);" onsubmit="handleLogin(event); return false;">
             <div class="field">
                 <label class="label" for="login-username">管理员账号</label>
                 <input type="text" id="login-username" class="input" placeholder="请输入用户名 (默认: admin)" value="{{ username or 'admin' }}" autocomplete="username" required>
@@ -292,7 +292,7 @@
                 <button type="button" id="btn-send-code" class="btn btn-outline btn-sm" onclick="sendForgotCode()">📨 获取 6 位邮箱验证码</button>
             </div>
 
-            <form onsubmit="handleForgotReset(event)">
+            <form action="javascript:void(0);" onsubmit="handleForgotReset(event); return false;">
                 <div class="field">
                     <label class="label" for="forgot-code">6 位邮箱验证码</label>
                     <input type="text" id="forgot-code" class="input" placeholder="请输入收到的 6 位数字" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" required>
@@ -349,36 +349,69 @@
 <script>
 // ==================== 首次部署初始化 ====================
 async function handleInit(e) {
-    e.preventDefault();
+    if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+    }
     const btn = document.getElementById('init-btn');
     const err = document.getElementById('err-msg');
     const succ = document.getElementById('succ-msg');
-    const username = document.getElementById('init-username').value.trim();
-    const port = parseInt(document.getElementById('init-port').value, 10) || 8088;
-    const pwd = document.getElementById('init-pwd').value;
-    const confirmPwd = document.getElementById('init-confirm-pwd').value;
+    const username = document.getElementById('init-username') ? document.getElementById('init-username').value.trim() : 'admin';
+    const portEl = document.getElementById('init-port');
+    const port = portEl ? (parseInt(portEl.value, 10) || 8088) : 8088;
+    const pwdEl = document.getElementById('init-pwd');
+    const confirmPwdEl = document.getElementById('init-confirm-pwd');
+    const pwd = pwdEl ? pwdEl.value : '';
+    const confirmPwd = confirmPwdEl ? confirmPwdEl.value : '';
 
-    err.style.display = 'none';
-    succ.style.display = 'none';
+    if (err) err.style.display = 'none';
+    if (succ) succ.style.display = 'none';
 
+    if (!pwd) {
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '请输入管理员访问密码';
+        }
+        if (pwdEl) pwdEl.focus();
+        return false;
+    }
+    if (!confirmPwd) {
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '请再次输入密码以确认';
+        }
+        if (confirmPwdEl) confirmPwdEl.focus();
+        return false;
+    }
     if (isNaN(port) || port < 1 || port > 65535) {
-        err.style.display = 'block';
-        err.textContent = 'Web 服务端口必须在 1 ~ 65535 之间';
-        return;
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = 'Web 服务端口必须在 1 ~ 65535 之间';
+        }
+        if (portEl) portEl.focus();
+        return false;
     }
     if (pwd !== confirmPwd) {
-        err.style.display = 'block';
-        err.textContent = '两次输入的密码不一致，请重新核对';
-        return;
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '两次输入的密码不一致，请重新核对';
+        }
+        if (confirmPwdEl) confirmPwdEl.focus();
+        return false;
     }
     if (pwd.length < 6) {
-        err.style.display = 'block';
-        err.textContent = '密码长度不能少于 6 位';
-        return;
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '密码长度不能少于 6 位';
+        }
+        if (pwdEl) pwdEl.focus();
+        return false;
     }
 
-    btn.disabled = true;
-    btn.textContent = '正在初始化...';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '正在初始化...';
+    }
 
     try {
         const resp = await fetch('/api/auth/init', {
@@ -392,21 +425,32 @@ async function handleInit(e) {
         });
         const res = await resp.json();
         if (res.success) {
-            succ.style.display = 'block';
-            succ.textContent = '🎉 管理员账号初始化成功，正在进入控制台...';
+            if (succ) {
+                succ.style.display = 'block';
+                succ.textContent = '🎉 管理员账号初始化成功，正在进入控制台...';
+            }
             setTimeout(() => { window.location.href = '/'; }, 1000);
         } else {
+            if (err) {
+                err.style.display = 'block';
+                err.textContent = res.message || '初始化失败，请重试';
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🚀 完成初始化并进入控制台';
+            }
+        }
+    } catch (errCatch) {
+        if (err) {
             err.style.display = 'block';
-            err.textContent = res.message || '初始化失败，请重试';
+            err.textContent = '网络请求失败，请检查服务状态';
+        }
+        if (btn) {
             btn.disabled = false;
             btn.textContent = '🚀 完成初始化并进入控制台';
         }
-    } catch (e) {
-        err.style.display = 'block';
-        err.textContent = '网络请求失败，请检查服务状态';
-        btn.disabled = false;
-        btn.textContent = '🚀 完成初始化并进入控制台';
     }
+    return false;
 }
 
 let isRecoveryMode = false;
@@ -444,22 +488,38 @@ function toggle2FAMode() {
 
 // ==================== 常规登录 ====================
 async function handleLogin(e) {
-    e.preventDefault();
+    if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+    }
     const btn = document.getElementById('login-btn');
     const err = document.getElementById('err-msg');
     const succ = document.getElementById('succ-msg');
-    const username = document.getElementById('login-username').value.trim();
-    const pwd = document.getElementById('login-pwd').value;
+    const username = document.getElementById('login-username') ? document.getElementById('login-username').value.trim() : 'admin';
+    const pwd = document.getElementById('login-pwd') ? document.getElementById('login-pwd').value : '';
     const totpInput = document.getElementById('totp');
     const totpCode = totpInput ? totpInput.value.trim() : '';
     const recoveryInput = document.getElementById('recovery-code');
     const recoveryCode = recoveryInput ? recoveryInput.value.trim() : '';
     const totpBox = document.getElementById('totp-container');
 
-    err.style.display = 'none';
-    succ.style.display = 'none';
-    btn.disabled = true;
-    btn.textContent = '正在验证...';
+    if (err) err.style.display = 'none';
+    if (succ) succ.style.display = 'none';
+
+    if (!pwd) {
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '请输入管理员访问密码';
+        }
+        const pwdEl = document.getElementById('login-pwd');
+        if (pwdEl) pwdEl.focus();
+        return false;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '正在验证...';
+    }
 
     try {
         const resp = await fetch('/api/login', {
@@ -475,10 +535,10 @@ async function handleLogin(e) {
         const res = await resp.json();
 
         if (res.success) {
-            btn.textContent = '验证成功，正在跳转...';
+            if (btn) btn.textContent = '验证成功，正在跳转...';
             window.location.href = '/';
         } else if (res.requires_totp) {
-            totpBox.style.display = 'block';
+            if (totpBox) totpBox.style.display = 'block';
             if (isRecoveryMode) {
                 if (recoveryInput) {
                     recoveryInput.required = true;
@@ -490,25 +550,38 @@ async function handleLogin(e) {
                     totpInput.focus();
                 }
             }
-            err.style.display = 'block';
-            err.textContent = res.message || '该账号已开启 2FA，请输入验证信息';
-            btn.disabled = false;
-            btn.textContent = '确认并登录';
+            if (err) {
+                err.style.display = 'block';
+                err.textContent = res.message || '该账号已开启 2FA，请输入验证信息';
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '确认并登录';
+            }
         } else if (res.requires_init) {
             alert('系统尚未完成初始化注册，页面将刷新以进入向导');
             window.location.reload();
         } else {
+            if (err) {
+                err.style.display = 'block';
+                err.textContent = res.message || '用户名或密码错误';
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '登录控制台';
+            }
+        }
+    } catch (errCatch) {
+        if (err) {
             err.style.display = 'block';
-            err.textContent = res.message || '用户名或密码错误';
+            err.textContent = '网络请求失败，请检查服务连接';
+        }
+        if (btn) {
             btn.disabled = false;
             btn.textContent = '登录控制台';
         }
-    } catch (e) {
-        err.style.display = 'block';
-        err.textContent = '网络请求失败，请检查服务连接';
-        btn.disabled = false;
-        btn.textContent = '登录控制台';
     }
+    return false;
 }
 
 // ==================== 忘记密码弹窗与逻辑 ====================
@@ -598,31 +671,70 @@ function startCodeCountdown(btn) {
 }
 
 async function handleForgotReset(e) {
-    e.preventDefault();
+    if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+    }
     const btn = document.getElementById('forgot-submit-btn');
     const err = document.getElementById('forgot-err');
     const succ = document.getElementById('forgot-succ');
-    const code = document.getElementById('forgot-code').value.trim();
-    const newPwd = document.getElementById('forgot-new-pwd').value;
-    const confirmPwd = document.getElementById('forgot-confirm-pwd').value;
-    const disable2FA = document.getElementById('forgot-disable-2fa').checked;
+    const codeEl = document.getElementById('forgot-code');
+    const code = codeEl ? codeEl.value.trim() : '';
+    const newPwdEl = document.getElementById('forgot-new-pwd');
+    const confirmPwdEl = document.getElementById('forgot-confirm-pwd');
+    const newPwd = newPwdEl ? newPwdEl.value : '';
+    const confirmPwd = confirmPwdEl ? confirmPwdEl.value : '';
+    const disable2FAEl = document.getElementById('forgot-disable-2fa');
+    const disable2FA = disable2FAEl ? disable2FAEl.checked : true;
 
-    err.style.display = 'none';
-    succ.style.display = 'none';
+    if (err) err.style.display = 'none';
+    if (succ) succ.style.display = 'none';
 
+    if (!code) {
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '请输入 6 位邮箱验证码';
+        }
+        if (codeEl) codeEl.focus();
+        return false;
+    }
+    if (!newPwd) {
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '请输入新密码';
+        }
+        if (newPwdEl) newPwdEl.focus();
+        return false;
+    }
+    if (!confirmPwd) {
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '请再次输入新密码以确认';
+        }
+        if (confirmPwdEl) confirmPwdEl.focus();
+        return false;
+    }
     if (newPwd !== confirmPwd) {
-        err.style.display = 'block';
-        err.textContent = '两次输入的新密码不一致，请核对';
-        return;
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '两次输入的新密码不一致，请核对';
+        }
+        if (confirmPwdEl) confirmPwdEl.focus();
+        return false;
     }
     if (newPwd.length < 6) {
-        err.style.display = 'block';
-        err.textContent = '新密码长度不能少于 6 位';
-        return;
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = '新密码长度不能少于 6 位';
+        }
+        if (newPwdEl) newPwdEl.focus();
+        return false;
     }
 
-    btn.disabled = true;
-    btn.textContent = '正在重置密码...';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '正在重置密码...';
+    }
 
     try {
         const resp = await fetch('/api/auth/forgot_password/reset', {
@@ -636,21 +748,32 @@ async function handleForgotReset(e) {
         });
         const res = await resp.json();
         if (res.success) {
-            succ.style.display = 'block';
-            succ.textContent = '🎉 密码重置成功，正在自动登录进入控制台...';
+            if (succ) {
+                succ.style.display = 'block';
+                succ.textContent = '🎉 密码重置成功，正在自动登录进入控制台...';
+            }
             setTimeout(() => { window.location.href = '/'; }, 1000);
         } else {
+            if (err) {
+                err.style.display = 'block';
+                err.textContent = res.message || '重置失败，请检查验证码';
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '确认重置密码并自动登录';
+            }
+        }
+    } catch (errCatch) {
+        if (err) {
             err.style.display = 'block';
-            err.textContent = res.message || '重置失败，请检查验证码';
+            err.textContent = '网络请求失败，请检查服务连接';
+        }
+        if (btn) {
             btn.disabled = false;
             btn.textContent = '确认重置密码并自动登录';
         }
-    } catch (e) {
-        err.style.display = 'block';
-        err.textContent = '网络请求失败，请检查服务连接';
-        btn.disabled = false;
-        btn.textContent = '确认重置密码并自动登录';
     }
+    return false;
 }
 
 function copyText(txt) {
@@ -699,8 +822,156 @@ if (window.matchMedia) {
     });
 }
 
+// ==================== 回车键智能表单提交与焦点转移 ====================
+function bindEnterKeyEvents() {
+    // 1. 初始化向导 Enter 处理
+    const initUser = document.getElementById('init-username');
+    const initPort = document.getElementById('init-port');
+    const initPwd = document.getElementById('init-pwd');
+    const initConfirm = document.getElementById('init-confirm-pwd');
+
+    if (initUser) {
+        initUser.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (initPort) initPort.focus();
+                else if (initPwd) initPwd.focus();
+            }
+        });
+    }
+
+    if (initPort) {
+        initPort.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (initPwd) initPwd.focus();
+            }
+        });
+    }
+
+    if (initPwd) {
+        initPwd.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (initConfirm && !initConfirm.value) {
+                    initConfirm.focus();
+                } else {
+                    handleInit(e);
+                }
+            }
+        });
+    }
+
+    if (initConfirm) {
+        initConfirm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (initPwd && !initPwd.value) {
+                    initPwd.focus();
+                } else {
+                    handleInit(e);
+                }
+            }
+        });
+    }
+
+    // 2. 常规登录 Enter 处理
+    const loginUser = document.getElementById('login-username');
+    const loginPwd = document.getElementById('login-pwd');
+    const totpInput = document.getElementById('totp');
+    const recoveryInput = document.getElementById('recovery-code');
+
+    if (loginUser) {
+        loginUser.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (loginPwd) loginPwd.focus();
+            }
+        });
+    }
+
+    if (loginPwd) {
+        loginPwd.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const totpBox = document.getElementById('totp-container');
+                const is2FAVisible = totpBox && totpBox.style.display !== 'none';
+                if (is2FAVisible) {
+                    if (isRecoveryMode && recoveryInput && !recoveryInput.value) {
+                        recoveryInput.focus();
+                        return;
+                    } else if (!isRecoveryMode && totpInput && !totpInput.value) {
+                        totpInput.focus();
+                        return;
+                    }
+                }
+                handleLogin(e);
+            }
+        });
+    }
+
+    if (totpInput) {
+        totpInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleLogin(e);
+            }
+        });
+    }
+
+    if (recoveryInput) {
+        recoveryInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleLogin(e);
+            }
+        });
+    }
+
+    // 3. 忘记密码重置 Enter 处理
+    const forgotCode = document.getElementById('forgot-code');
+    const forgotNewPwd = document.getElementById('forgot-new-pwd');
+    const forgotConfirmPwd = document.getElementById('forgot-confirm-pwd');
+
+    if (forgotCode) {
+        forgotCode.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (forgotNewPwd) forgotNewPwd.focus();
+            }
+        });
+    }
+
+    if (forgotNewPwd) {
+        forgotNewPwd.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (forgotConfirmPwd && !forgotConfirmPwd.value) {
+                    forgotConfirmPwd.focus();
+                } else {
+                    handleForgotReset(e);
+                }
+            }
+        });
+    }
+
+    if (forgotConfirmPwd) {
+        forgotConfirmPwd.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (forgotNewPwd && !forgotNewPwd.value) {
+                    forgotNewPwd.focus();
+                } else {
+                    handleForgotReset(e);
+                }
+            }
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     applyTheme(localStorage.getItem('simsync_theme_mode') || 'auto');
+    bindEnterKeyEvents();
 });
 </script>
 
