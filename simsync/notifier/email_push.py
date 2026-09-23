@@ -248,6 +248,7 @@ class EmailNotifier:
             host_lower = self.smtp_host.lower()
             is_qq = "qq.com" in host_lower
             is_163 = "163.com" in host_lower
+            is_outlook = any(dom in host_lower for dom in ("outlook.com", "office365.com", "hotmail.com", "live.com"))
 
             tips = []
             if is_qq:
@@ -257,6 +258,11 @@ class EmailNotifier:
             elif is_163:
                 tips.append("【网易邮箱客户端授权码】网易 163/126 邮箱必须使用客户端专用授权码，不可使用日常登录密码。")
                 tips.append("【端口设置】网易邮箱请使用 465 端口并勾选【使用直接 SSL】（网易不支持 587 端口）。")
+            elif is_outlook:
+                tips.append("【代理/VPN 拦截 587 端口】若开启了科学上网/Clash/VPN（特别是 TUN 虚拟网卡模式），绝大多数境外代理节点默认封锁了 587/25 端口以防垃圾邮件，会导致连接被代理秒掐断。请在代理软件中将 smtp-mail.outlook.com 和 smtp.office365.com 设为直连 (DIRECT) 或临时退出代理。")
+                tips.append("【微软专用应用密码】微软已弃用普通日常登录密码 (Basic Auth)，必须在微软账户开启两步验证后，在【高级安全选项 -> 应用密码】中生成专属 16 位应用密码填入。")
+                tips.append("【端口与 SSL 匹配】Outlook 推荐 587 端口并【取消勾选使用直接 SSL】（必须走 STARTTLS 协商）。")
+                tips.append("【企业版 SMTP AUTH】若为 Office 365 组织/企业邮箱，需在 Microsoft 365 管理中心为该用户勾选【经过身份验证的 SMTP】功能。")
             else:
                 tips.append("【SSL 端口匹配】通常 465 端口需勾选【使用直接 SSL】；587 或 25 端口需取消勾选（走 STARTTLS）。")
                 tips.append("【专用授权码】多数主流邮件服务商强制要求使用【客户端应用密码/授权码】，禁止使用普通登录密码。")

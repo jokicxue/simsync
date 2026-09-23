@@ -184,6 +184,34 @@ class TestEmailPush(unittest.TestCase):
         self.assertIn("QQ 邮箱专用授权码排查", err_text)
         self.assertIn("POP3/SMTP", err_text)
 
+    @patch("smtplib.SMTP")
+    def test_outlook_disconnected_diagnosis(self, mock_smtp):
+        mock_server = MagicMock()
+        mock_server.has_extn.return_value = True
+        mock_server.login.side_effect = smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
+        mock_smtp.return_value = mock_server
+
+        notifier = EmailNotifier(
+            smtp_host="smtp-mail.outlook.com",
+            smtp_port=587,
+            use_ssl=False,
+            username="test@outlook.com",
+            password="pwd",
+            from_addr="",
+            to_addrs=["target@outlook.com"],
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            notifier.send_sms_notification({
+                "sender": "10086",
+                "content": "test",
+                "readable_date": "2026-09-23",
+            })
+        err_text = str(ctx.exception)
+        self.assertIn("Connection unexpectedly closed", err_text)
+        self.assertIn("代理/VPN 拦截 587 端口", err_text)
+        self.assertIn("微软专用应用密码", err_text)
+
 
 if __name__ == "__main__":
     unittest.main()
