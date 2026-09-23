@@ -2288,6 +2288,7 @@
                 <div class="card-title">
                     <span>🕊️ 飞书推送配置 (Feishu Bot & Bitable)</span>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="saveAllNotifications()">💾 保存配置</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('feishu', 'sms')">📨 测试短信推送</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('feishu', 'call')">📞 测试来电推送</button>
                     </div>
@@ -2358,25 +2359,30 @@
                         </label>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">自建应用凭据 (App ID / App Secret)</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="notif-feishu-app-id" class="form-input" value="{{ notifications.feishu.bitable.app_id }}" placeholder="cli_...">
-                            <div class="input-with-eye" style="flex: 1;">
-                                <input type="password" id="notif-feishu-app-secret" class="form-input" value="{{ notifications.feishu.bitable.app_secret }}" placeholder="Secret">
-                                <button type="button" class="btn-toggle-eye" onclick="toggleInputVisibility('notif-feishu-app-secret', this)" title="显示/隐藏明文">👁️</button>
-                            </div>
-                        </div>
+                        <label class="form-label">自建应用 App ID (必填)</label>
+                        <input type="text" id="notif-feishu-app-id" class="form-input" value="{{ notifications.feishu.bitable.app_id }}" placeholder="形如 cli_xxxxxxxxxxxxxxxx">
+                        <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">在「飞书开放平台 &rarr; 企业自建应用 &rarr; 凭证与基础信息」中获取 App ID。</p>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">多维表格文档 Token (App Token 或 Wiki Token)</label>
+                        <label class="form-label">自建应用 App Secret (必填)</label>
                         <div class="input-with-eye">
-                            <input type="password" id="notif-feishu-app-token" class="form-input" value="{{ notifications.feishu.bitable.app_token }}" placeholder="app_token 或 ZS10...">
+                            <input type="password" id="notif-feishu-app-secret" class="form-input" value="{{ notifications.feishu.bitable.app_secret }}" placeholder="自建应用 Secret 密钥">
+                            <button type="button" class="btn-toggle-eye" onclick="toggleInputVisibility('notif-feishu-app-secret', this)" title="显示/隐藏明文">👁️</button>
+                        </div>
+                        <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">在「飞书开放平台 &rarr; 企业自建应用 &rarr; 凭证与基础信息」中获取 App Secret（本地加密保存）。</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">多维表格文档 Token (App Token 或 Wiki Token) (必填)</label>
+                        <div class="input-with-eye">
+                            <input type="password" id="notif-feishu-app-token" class="form-input" value="{{ notifications.feishu.bitable.app_token }}" placeholder="形如 bascnxxxxxxxxxxxxxxxx 或 wikcnxxxxxxxxxxxxxxxx">
                             <button type="button" class="btn-toggle-eye" onclick="toggleInputVisibility('notif-feishu-app-token', this)" title="显示/隐藏明文">👁️</button>
                         </div>
+                        <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">在浏览器中打开多维表格，复制地址栏中 <code>/base/</code> 或 <code>/wiki/</code> 后面的字符串。</p>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">短信归档数据表 ID (Table ID)</label>
-                        <input type="text" id="notif-feishu-table-id" class="form-input" value="{{ notifications.feishu.bitable.table_id }}" placeholder="tbl... (存放短信的数据表)">
+                        <label class="form-label">短信归档数据表 ID (Table ID) (必填)</label>
+                        <input type="text" id="notif-feishu-table-id" class="form-input" value="{{ notifications.feishu.bitable.table_id }}" placeholder="形如 tblxxxxxxxxxxxxxxxx (存放短信的数据表)">
+                        <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">在浏览器中打开存放短信的工作表，复制地址栏中 <code>?table=</code> 后面的字符串。</p>
                     </div>
 
                     <div style="border-top: 1px dashed var(--border); padding-top: 10px; margin-top: 12px;">
@@ -2407,6 +2413,35 @@
                         </div>
                     </div>
 
+                    <!-- 飞书多维表格需要收集的信息与字段规范 -->
+                    <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; padding: 12px 14px; margin-top: 14px; font-size: 0.82rem; line-height: 1.6;">
+                        <div style="font-weight: 600; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <span>📋 飞书多维表格需要收集的信息（工作表必须创建以下列）：</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>📩 短信数据表（Table ID 对应的工作表）必须包含以下 5 个字段（字段名必须完全一致）：</strong>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; margin-top: 6px;">
+                                <div style="background: var(--bg-card); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>本机号码</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(文本)</span></div>
+                                <div style="background: var(--bg-card); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>发件人</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(文本)</span></div>
+                                <div style="background: var(--bg-card); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>短信内容</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(多行文本)</span></div>
+                                <div style="background: var(--bg-card); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>接收时间</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(文本/日期)</span></div>
+                                <div style="background: var(--bg-card); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>短信中心</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(文本)</span></div>
+                            </div>
+                        </div>
+                        <div>
+                            <strong>📞 来电数据表（若启用来电归档且使用独立表）必须包含以下 4 个字段：</strong>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; margin-top: 6px;">
+                                <div style="background: var(--bg-card); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>本机号码</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(文本)</span></div>
+                                <div style="background: var(--bg-card); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>来电号码</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(文本)</span></div>
+                                <div style="background: var(--bg-card); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>处理动作</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(文本)</span></div>
+                                <div style="background: var(--bg-card); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);"><code>发生时间</code> <span style="color: var(--text-muted); font-size: 0.74rem;">(文本/日期)</span></div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(59, 130, 246, 0.2); color: var(--text-muted); font-size: 0.78rem;">
+                            ⚠️ <strong>必须授权协作者</strong>：创建自建应用后，请务必开通 <code>bitable:app</code> 权限并发布；同时在飞书多维表格右上角点击 <strong>“分享 &rarr; 添加协作者”</strong>，将自建应用添加为 <strong>可编辑</strong> 协作者，否则飞书接口将拒绝写入。
+                        </div>
+                    </div>
+
                     <!-- 多维表格历史短信比对与增量同步 -->
                     <div style="border-top: 1px dashed var(--border); padding-top: 14px; margin-top: 14px;">
                         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
@@ -2418,9 +2453,11 @@
                                     按当前 SIM 卡本机号码智能比对，自动补录飞书表格中缺失的历史短信（指纹去重防混）。
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-primary btn-sm" id="btn-sync-feishu-bitable" onclick="syncFeishuBitable()">
-                                <span>🔄 一键比对并同步</span>
-                            </button>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" class="btn btn-primary btn-sm" id="btn-sync-feishu-bitable" onclick="syncFeishuBitable()">
+                                    <span>🔄 一键比对并同步</span>
+                                </button>
+                            </div>
                         </div>
                         <div id="feishu-sync-result" style="display: none; margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 0.82rem;"></div>
                     </div>
@@ -2434,6 +2471,7 @@
                 <div class="card-title">
                     <span>💬 微信推送配置 (企业微信机器人 / WxPusher)</span>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="saveAllNotifications()">💾 保存配置</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('wechat', 'sms')">📨 测试短信推送</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('wechat', 'call')">📞 测试来电推送</button>
                     </div>
@@ -2526,6 +2564,7 @@
                 <div class="card-title">
                     <span>✉️ 邮件推送配置 (SMTP)</span>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="saveAllNotifications()">💾 保存配置</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('email', 'sms')">📨 测试短信推送</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('email', 'call')">📞 测试来电推送</button>
                     </div>
@@ -2619,6 +2658,7 @@
                 <div class="card-title">
                     <span>📌 钉钉推送配置 (DingTalk Bot)</span>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="saveAllNotifications()">💾 保存配置</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('dingtalk', 'sms')">📨 测试短信推送</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('dingtalk', 'call')">📞 测试来电推送</button>
                     </div>
@@ -2701,6 +2741,7 @@
                 <div class="card-title">
                     <span>✈️ Telegram 推送配置 (Bot)</span>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="saveAllNotifications()">💾 保存配置</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('telegram', 'sms')">📨 测试短信推送</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('telegram', 'call')">📞 测试来电推送</button>
                     </div>
@@ -2778,6 +2819,7 @@
                 <div class="card-title">
                     <span>🔗 自定义 Webhook 推送配置</span>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="saveAllNotifications()">💾 保存配置</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('webhook', 'sms')">📨 测试短信推送</button>
                         <button class="btn btn-outline btn-sm" onclick="testNotificationChannel('webhook', 'call')">📞 测试来电推送</button>
                     </div>
@@ -4547,7 +4589,8 @@ function updateSubtabBadge(channel) {
     }
 }
 
-async function saveAllNotifications() {
+async function saveAllNotifications(options = {}) {
+    const isSilent = Boolean(options && options.silent);
     const payload = {
         feishu: {
             enabled: document.getElementById('notif-feishu-enabled').checked,
@@ -4632,17 +4675,29 @@ async function saveAllNotifications() {
         });
         const res = await resp.json();
         if (res.success) {
-            alert("✅ 推送配置已成功保存并即时生效！");
+            if (!isSilent) {
+                alert("✅ 推送配置已成功保存并即时生效！");
+            }
             refreshStatus();
+            return true;
         } else {
-            alert("❌ 保存失败: " + (res.error || JSON.stringify(res)));
+            if (!isSilent) {
+                alert("❌ 保存失败: " + (res.error || JSON.stringify(res)));
+            }
+            return false;
         }
     } catch (e) {
-        alert("请求异常: " + e);
+        if (!isSilent) {
+            alert("请求异常: " + e);
+        }
+        return false;
     }
 }
 
 async function testNotificationChannel(channel, eventType = 'sms') {
+    // 自动先静默保存当前界面输入的最新参数
+    await saveAllNotifications({ silent: true });
+
     const eventName = eventType === 'call' ? '来电提醒' : '短信';
     try {
         const resp = await fetch(`/api/notifications/test/${channel}?event=${eventType}`, {method: 'POST'});
@@ -4661,6 +4716,9 @@ async function syncFeishuBitable() {
     const btn = document.getElementById('btn-sync-feishu-bitable');
     const resultBox = document.getElementById('feishu-sync-result');
     if (!btn) return;
+
+    // 自动先静默保存当前输入的所有最新配置
+    await saveAllNotifications({ silent: true });
 
     const origHtml = btn.innerHTML;
     btn.disabled = true;
