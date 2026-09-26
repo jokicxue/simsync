@@ -188,7 +188,55 @@ class TestSimSyncCore(unittest.TestCase):
         self.db.delete_scheduled_task(task_id)
         self.assertEqual(len(self.db.get_scheduled_tasks()), 0)
 
+    def test_gsm7_multipart_udh_decoding(self):
+        """测试 GSM 7-bit 带 UDH 的长短信分片解码（验证 1-bit 填充位对齐，防止变成 ¿bdfhjlnpr 乱码）"""
+        decoder = PduDecoder()
+        # 分片 1: 包含 6 字节 UDH (7 septets) + 10 字符文本 '0123456789'
+        pdu_part1 = "00440D91683108100005F0000062900221000000110500030102016031D98C56B3DD7039"
+        res1 = decoder.decode(pdu_part1)
+        self.assertIsNotNone(res1)
+        self.assertEqual(res1["content"], "0123456789")
+        self.assertFalse(res1["is_complete"])
+
+    def test_8bit_gbk_decoding(self):
+        """测试国内运营商常见的 8-bit 数据编码 (DCS=04) 短信解码（回退至 GBK/GB18030）"""
+        decoder = PduDecoder()
+        # DCS=04 (8-bit), 正文为 GBK 编码的 '你好' (C4 E3 BA C3)
+        pdu_8bit = "00040D91683108100005F000046290022100000004C4E3BAC3"
+        res = decoder.decode(pdu_8bit)
+        self.assertIsNotNone(res)
+        self.assertEqual(res["content"], "你好")
+
+    def test_raw_tpdu_without_smsc(self):
+        """测试模组上报不带 SMSC 地址头的裸 TPDU 场景"""
+        decoder = PduDecoder()
+        # 无 SMSC 头，首字节直接为 First Octet (04)，正文为 UCS2 '你好'
+        pdu_raw = "040B911614325476F8000862900221000000044F60597D"
+        res = decoder.decode(pdu_raw)
+        self.assertIsNotNone(res)
+        self.assertEqual(res["sender"], "+61412345678")
+        self.assertEqual(res["content"], "你好")
+
+    def test_text_mode_ucs2_hex_conversion(self):
+        """测试 Text 模式 (+CMGF=1) 下模组上报 UCS2-HEX 自动还原为中文字符"""
+        header = '+CMT: "10086",,"26/09/26,17:00:00+32"'
+        body = "4F60597D"  # '你好' 的 UCS2 十六进制
+        res = parse_text_mode_sms(header, body)
+        self.assertIsNotNone(res)
+        self.assertEqual(res["sender"], "10086")
+        self.assertEqual(res["content"], "你好")
+
+    def test_pdu_trailing_noise_trimming(self):
+        """测试 PDU 尾部携带杂散字节或状态码时被精准截断"""
+        decoder = PduDecoder()
+        # 尾部追加了 FFFFFF 噪声
+        pdu_noise = "00040B911614325476F8000862900221000000044F60597DFFFFFF"
+        res = decoder.decode(pdu_noise)
+        self.assertIsNotNone(res)
+        self.assertEqual(res["content"], "你好")
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

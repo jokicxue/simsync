@@ -20,6 +20,19 @@ from simsync.config import AutoFlightConfig
 logger = logging.getLogger("simsync.modem")
 
 
+def decode_serial_bytes(raw: bytes) -> str:
+    """智能解码串口数据，优先 UTF-8，回退 GB18030/GBK，防止中文乱码"""
+    if not raw:
+        return ""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            return raw.decode("gb18030")
+        except Exception:
+            return raw.decode("utf-8", errors="replace")
+
+
 def probe_port_at(port_name: str, baudrate: int = 115200) -> Dict[str, Any]:
     """
     探测单个串口是否响应 AT 指令，并验证其是否为具备完整功能的蜂窝主端口
@@ -46,7 +59,7 @@ def probe_port_at(port_name: str, baudrate: int = 115200) -> Dict[str, Any]:
                     if b"OK" in buf or b"ERROR" in buf:
                         break
                 time.sleep(0.04)
-            return buf.decode("utf-8", errors="replace").strip()
+            return decode_serial_bytes(bytes(buf)).strip()
 
         # 1. 发送初次 AT 握手
         s.write(b"AT\r\n")
@@ -334,7 +347,7 @@ class ModemClient:
                 lines = []
                 while time.time() - start_time < timeout:
                     if self.ser.in_waiting:
-                        line = self.ser.readline().decode("utf-8", errors="replace").strip()
+                        line = decode_serial_bytes(self.ser.readline()).strip()
                         if line:
                             lines.append(line)
                             if line in ["OK", "ERROR"] or "CME ERROR" in line or "CMS ERROR" in line:
@@ -399,10 +412,15 @@ class ModemClient:
         self.send_at("AT+CMEE=2")
         # 3. 开启来电显示提示
         self.send_at("AT+CLIP=1")
-        # 4. 设置短信为 PDU 模式 (支持国际编码与长短信)
+        # 4. 设置标准字符集为 GSM
+        self.send_at('AT+CSCS="GSM"')
+        # 5. 设置短信为 PDU 模式 (支持国际编码与长短信)
         self.send_at("AT+CMGF=0")
-        # 5. 设置新短信直接串口上报 (+CMT)，不保存在 SIM 卡，防存满且秒级通知
-        self.send_at("AT+CNMI=2,2,0,0,0")
+        # 6. 设置新短信直接串口上报 (+CMT)，不保存在 SIM 卡，防存满且秒级通知；若不支持则回退 2,1
+        cnmi_resp = self.send_at("AT+CNMI=2,2,0,0,0")
+        if "ERROR" in cnmi_resp:
+            logger.warning("模组不支持 AT+CNMI=2,2,0,0,0，尝试回退模式 AT+CNMI=2,1,0,0,0...")
+            self.send_at("AT+CNMI=2,1,0,0,0")
 
         # 读取设备状态
         self.refresh_status()
@@ -540,6 +558,15 @@ class ModemClient:
             self.is_flight_mode = enable
             if enable:
                 self._cancel_auto_flight()
+            else:
+                # 退出飞行模式后，模组射频重新初始化，确保 PDU 模式与 URC 接收配置重新生效
+                time.sleep(0.5)
+                self.send_at("ATE0")
+                self.send_at('AT+CSCS="GSM"')
+                self.send_at("AT+CMGF=0")
+                cnmi_resp = self.send_at("AT+CNMI=2,2,0,0,0")
+                if "ERROR" in cnmi_resp:
+                    self.send_at("AT+CNMI=2,1,0,0,0")
             self.refresh_status()
             if self.on_flight_changed:
                 try:
@@ -727,7 +754,7 @@ class ModemClient:
                 # 如果没有加锁，说明当前没有同步 AT 命令在执行，我们可以读取主动上报 URC
                 if not self._lock.locked() and self.ser.in_waiting:
                     raw_line = self.ser.readline()
-                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    line = decode_serial_bytes(raw_line).strip()
                 else:
                     time.sleep(0.05)
                     continue
@@ -743,7 +770,7 @@ class ModemClient:
                         clip_start = time.time()
                         while time.time() - clip_start < 0.4:
                             if self.ser and self.ser.in_waiting:
-                                sub_line = self.ser.readline().decode("utf-8", errors="replace").strip()
+                                sub_line = decode_serial_bytes(self.ser.readline()).strip()
                                 if sub_line.startswith("+CLIP:"):
                                     m_clip = re.search(r'\+CLIP:\s*"([^"]+)"', sub_line)
                                     if m_clip:
@@ -767,16 +794,27 @@ class ModemClient:
                         self._last_caller = m.group(1)
                         logger.info(f"检测到来电号码: {self._last_caller}")
 
-                # ================= 短信处理 =================
+                # ================= 短信处理 (+CMT 串口直报) =================
                 elif line.startswith("+CMT:"):
-                    pdu_or_content = self.ser.readline().decode("utf-8", errors="replace").strip()
+                    # 最多等待 1.5 秒抓取伴随的短信正文/PDU行，跳过空行
+                    pdu_or_content = ""
+                    t_start = time.time()
+                    while time.time() - t_start < 1.5:
+                        if self.ser and self.ser.in_waiting:
+                            raw_chunk = self.ser.readline()
+                            sub_line = decode_serial_bytes(raw_chunk).strip()
+                            if sub_line:
+                                pdu_or_content = sub_line
+                                break
+                        time.sleep(0.02)
+
                     logger.info(f"检测到新短信上报: {line} | 数据: {pdu_or_content}")
 
                     sms_data = None
-                    if re.match(r"^[0-9A-Fa-f]{16,}$", pdu_or_content):
+                    if pdu_or_content and re.match(r"^[0-9A-Fa-f]{16,}$", pdu_or_content):
                         sms_data = self.pdu_decoder.decode(pdu_or_content)
 
-                    if not sms_data:
+                    if not sms_data and pdu_or_content:
                         sms_data = parse_text_mode_sms(line, pdu_or_content)
 
                     if sms_data:
@@ -794,7 +832,44 @@ class ModemClient:
                         else:
                             logger.info("收到长短信分片，等待其余分片拼接...")
 
+                # ================= 短信处理 (+CMTI SIM/ME 存储提醒) =================
+                elif line.startswith("+CMTI:"):
+                    logger.info(f"检测到 SIM/ME 新短信存储通知: {line}")
+                    m_cmti = re.search(r'\+CMTI:\s*"([A-Za-z]+)"\s*,\s*(\d+)', line)
+                    if m_cmti:
+                        mem = m_cmti.group(1)
+                        idx_num = m_cmti.group(2)
+                        self._handle_stored_sms(mem, idx_num)
+
             except Exception as e:
                 logger.error(f"串口监听异常: {e}")
                 self._close_serial()
                 time.sleep(3)
+
+    def _handle_stored_sms(self, mem: str, index: str):
+        """读取 SIM/ME 存储的短信，解码后自动删除释放卡槽，防止卡满"""
+        try:
+            # 确保处于 PDU 模式读取
+            self.send_at("AT+CMGF=0")
+            read_resp = self.send_at(f"AT+CMGR={index}")
+            # +CMGR: <stat>,[<alpha>],<length>\r\n<pdu>
+            pdu_hex = ""
+            for l in read_resp.splitlines():
+                l = l.strip()
+                if l and not l.startswith("+CMGR") and not l.startswith("AT") and l not in ("OK", "ERROR"):
+                    if re.match(r"^[0-9A-Fa-f]{16,}$", l):
+                        pdu_hex = l
+                        break
+
+            if pdu_hex:
+                sms_data = self.pdu_decoder.decode(pdu_hex)
+                if sms_data and sms_data.get("is_complete"):
+                    logger.info(f"成功读取并解码存储短信: [{sms_data['sender']}] {sms_data['content']}")
+                    if self.on_sms_received:
+                        self.on_sms_received(sms_data)
+
+            # 读取后立即删除该卡槽，防止卡满
+            self.send_at(f"AT+CMGD={index}")
+            logger.info(f"已清理卡槽短信: {mem} 索引 {index}")
+        except Exception as e:
+            logger.error(f"处理存储短信卡槽 {mem}:{index} 异常: {e}")
